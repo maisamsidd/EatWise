@@ -1,0 +1,2 @@
+D:/SmitE/projects_flutter/eatWise-master/android/app/.cxx/Debug/2t512g6j/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/SmitE/projects_flutter/eatWise-master/android/app/.cxx/Debug/2t512g6j/armeabi-v7a/CMakeFiles/rebuild_cache.dir

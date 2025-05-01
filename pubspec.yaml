@@ -57,6 +57,11 @@ dependencies:
   
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.0
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/animations/image-removebg-preview.png"
   flutter_test:
     sdk: flutter
 
@@ -75,6 +80,8 @@ flutter:
   assets:
     - 'assets\animations\Splash.json'
     - 'assets\animations\Home.json'
+    - 'assets\animations\chat-bot_icon.png'
+    - 'assets/animations/image-removebg-preview.png'
     - .env
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

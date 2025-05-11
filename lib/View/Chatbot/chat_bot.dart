@@ -1,8 +1,20 @@
 import 'dart:convert';
-import 'package:eat_wise/Model/ChatModel.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart'; // For haptic feedback
+// Assuming ChatModel.dart contains the ChatMessage class
+// import 'package:eat_wise/Model/ChatModel.dart';
+
+// Define ChatMessage class for clarity (replace with your actual ChatModel.dart)
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final DateTime timestamp;
+
+  ChatMessage(this.text, this.isUser, {DateTime? timestamp})
+      : timestamp = timestamp ?? DateTime.now();
+}
 
 class ChatScreen extends StatefulWidget {
   final String initialMessage;
@@ -19,10 +31,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
 
   bool _isLoading = false;
+  bool _isTyping = false; // For send button animation
 
-  // Animation Controller and Animation for background color change
+  // Animation Controller for background and send button
   late AnimationController _animationController;
   late Animation<Color?> _colorAnimation;
+  late AnimationController _sendButtonController;
+  late Animation<double> _sendButtonScale;
 
   Future<void> sendMessage(String userInput) async {
     const topicInstruction =
@@ -37,6 +52,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _isLoading = true;
     });
 
+    // Simulate bot typing
+    await Future.delayed(Duration(milliseconds: 500));
     final reply = await generateGeminiResponse(fullPrompt);
 
     setState(() {
@@ -45,6 +62,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
 
     _controller.clear();
+    HapticFeedback.lightImpact(); // Add haptic feedback
   }
 
   Future<String> generateGeminiResponse(String prompt) async {
@@ -83,54 +101,89 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _messages.add(ChatMessage(
         "👋 Welcome to EatWise Chatbot! How can I assist you today?", false));
     _controller.text = widget.initialMessage;
+    _controller.addListener(() {
+      setState(() {
+        _isTyping = _controller.text.trim().isNotEmpty;
+      });
+    });
 
-    // Initialize AnimationController and ColorTween for background animation
+    // Background animation
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(seconds: 5),
-    )..repeat(reverse: true);  // Repeat with reverse
+      duration: Duration(seconds: 10), // Slower for subtlety
+    )..repeat(reverse: true);
 
     _colorAnimation = ColorTween(
-      begin: Colors.blue.shade700,
-      end: Colors.lightGreen,
-    ).animate(_animationController);
+      begin: Colors.blue.shade300,
+      end: Colors.green.shade300,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    // Send button animation
+    _sendButtonController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
+    _sendButtonScale = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(
+        parent: _sendButtonController,
+        curve: Curves.easeInOut,
+      ),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_focusNode);
     });
   }
 
-
   @override
   void dispose() {
-    _animationController.dispose();  // Dispose of the animation controller
+    _animationController.dispose();
+    _sendButtonController.dispose();
+    _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final Color primaryBlue = Colors.blueAccent;
-    final Color softGreen = Colors.grey.shade300;
+    final Color softGreen = Colors.green.shade100;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue.shade700,
-        title: Row(
-          children: [
-            const Text(
-              "Hello",
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 30,
-                  color: Colors.white),
-            ),
-          ],
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
-        elevation: 3, // Remove shadow
-        toolbarHeight: 100,
+        title: Text(
+          "EatWise Chat",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Colors.white,
+            fontFamily: 'Roboto', // Modern font
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline, color: Colors.white),
+            onPressed: () {
+              // Show info or settings
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Chatbot for nutrition guidance")),
+              );
+            },
+          ),
+        ],
+        elevation: 0,
       ),
       body: Stack(
         children: [
+          // Gradient background with blur
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _animationController,
@@ -140,128 +193,226 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Colors.blue.shade300, _colorAnimation.value!],
-                      stops: [0.0, 1.0],
+                      colors: [
+                        Colors.blue.shade200,
+                        _colorAnimation.value!,
+                        Colors.teal.shade200,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
                     ),
                   ),
                 );
               },
             ),
           ),
-          // Main content on top of the background
+          // Main content
           Column(
             children: [
-              // Add space for the app bar
-              //SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length,
+                  itemCount: _messages.length + (_isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (_isLoading && index == _messages.length) {
+                      return _buildTypingIndicator();
+                    }
                     final message = _messages[index];
-                    return Align(
-                      alignment: message.isUser
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 12),
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        decoration: BoxDecoration(
-                          color: message.isUser ? primaryBlue : Colors.green.shade200,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                            bottomLeft: message.isUser
-                                ? Radius.circular(16)
-                                : Radius.zero,
-                            bottomRight: message.isUser
-                                ? Radius.zero
-                                : Radius.circular(16),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: Offset(2, 2),
-                            )
-                          ],
-                        ),
-                        child: Text(
-                          message.text,
-                          style: TextStyle(
-                            color: message.isUser ? Colors.white : Colors.black87,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    );
+                    return _buildMessageBubble(message);
                   },
                 ),
               ),
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(),
-                ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          cursorColor: Colors.green,
-                          cursorWidth: 2.0, // Default is 2.0
-                          cursorHeight: 18.0,
-                          cursorRadius: Radius.circular(2.0),
-                          keyboardType: TextInputType.multiline,
-                          maxLines: null,
-                          decoration: InputDecoration(
-                            hintText: "Type your message...",
-                            hintStyle: TextStyle(color: Colors.grey[600]),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                          ),
-
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: primaryBlue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        onPressed: () {
-                          final text = _controller.text.trim();
-                          if (text.isNotEmpty) {
-                            sendMessage(text);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildInputArea(primaryBlue, softGreen),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Typing indicator widget
+  Widget _buildTypingIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Bot is typing",
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            SizedBox(width: 8),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Colors.blue.shade700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Message bubble widget
+  Widget _buildMessageBubble(ChatMessage message) {
+    final isUser = message.isUser;
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blueAccent : Colors.green.shade200,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomLeft: isUser ? Radius.circular(16) : Radius.zero,
+            bottomRight: isUser ? Radius.zero : Radius.circular(16),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment:
+          isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isUser)
+                  Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Colors.blue.shade700,
+                      child: Icon(Icons.restaurant_menu,
+                          size: 16, color: Colors.white),
+                    ),
+                  ),
+                Flexible(
+                  child: Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isUser ? Colors.white : Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text(
+              "${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}",
+              style: TextStyle(
+                color: isUser ? Colors.white70 : Colors.black54,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Input area widget
+  Widget _buildInputArea(Color primaryBlue, Color softGreen) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                cursorColor: Colors.blueAccent,
+                cursorWidth: 2.0,
+                cursorHeight: 20.0,
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+                decoration: InputDecoration(
+                  hintText: "Type your message...",
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: InputBorder.none,
+                  contentPadding:
+                  EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  suffixIcon: _isTyping
+                      ? IconButton(
+                    icon: Icon(Icons.clear, color: Colors.grey[600]),
+                    onPressed: () {
+                      _controller.clear();
+                    },
+                  )
+                      : null,
+                ),
+                onSubmitted: (text) {
+                  if (text.trim().isNotEmpty) {
+                    sendMessage(text);
+                  }
+                },
+              ),
+            ),
+          ),
+          SizedBox(width: 12),
+          AnimatedBuilder(
+            animation: _sendButtonScale,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _sendButtonScale.value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _isTyping ? primaryBlue : Colors.grey.shade400,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: Colors.white),
+                    onPressed: _isTyping
+                        ? () {
+                      final text = _controller.text.trim();
+                      if (text.isNotEmpty) {
+                        sendMessage(text);
+                        _sendButtonController.forward().then((_) =>
+                            _sendButtonController.reverse());
+                      }
+                    }
+                        : null,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

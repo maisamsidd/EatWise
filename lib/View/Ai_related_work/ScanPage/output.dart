@@ -1,393 +1,475 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:async'; // Added for explicit timeout handling
-import 'package:eat_wise/Utils/Apis_utils.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'dart:ui';
+import 'package:animate_gradient/animate_gradient.dart';
 
 class Output extends StatefulWidget {
-  final List<String> dishes;
-  final Map<String, bool> healthConditions;
   final String userId;
   final String profileId;
+  final Map<String, bool> healthConditions;
+  final List<String> dishes;
 
   const Output({
     super.key,
-    required this.dishes,
-    required this.healthConditions,
     required this.userId,
     required this.profileId,
+    required this.healthConditions,
+    required this.dishes,
   });
 
   @override
   State<Output> createState() => _OutputState();
 }
 
-class _OutputState extends State<Output> {
-  String recommendationText = "Loading recommendations...";
-  List<String> matchedDishes = [];
-  bool isLoading = true;
-  String errorMessage = "";
-  bool hasError = false;
-  final Color primaryColor = Colors.blue.shade700;
-  final Color secondaryColor = Colors.blue.shade100;
-  final Color textColor = Colors.white;
-  bool isRetrying = false;
-  int retryCount = 0;
-  final int maxRetries = 2;
+class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
+  bool _isLoading = true;
+  bool _hasError = false;
+  String _errorMessage = '';
+  List<dynamic> _analyses = [];
+  List<dynamic> _filteredAnalyses = [];
+  Map<String, dynamic>? _profileInfo;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  final Map<String, bool> _expandedCards = {};
+  late AnimationController _fabController;
+  late Animation<double> _fabAnimation;
 
-  // Search functionality
-  TextEditingController searchController = TextEditingController();
-  List<String> filteredDishes = [];
-  bool isSearching = false;
+  // Color Palette
+  final Color _primaryColor = const Color(0xFF1976D2);
+  final Color _successColor = const Color(0xFF4CAF50);
+  final Color _warningColor = const Color(0xFFFFC107);
+  final Color _dangerColor = const Color(0xFFF44336);
+  final Color _cardBackground = const Color(0xFFFAFAFA);
 
   @override
   void initState() {
     super.initState();
-    fetchRecommendations();
+    _fetchRecommendations();
+    _searchController.addListener(_filterAnalyses);
+    _fabController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fabAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
+      CurvedAnimation(parent: _fabController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    searchController.dispose();
+    _searchController.dispose();
+    _fabController.dispose();
     super.dispose();
   }
 
-  Future<void> fetchRecommendations() async {
-    // API endpoint - consider moving this to a configuration file
-    const apiUrl = "https://fc70-34-125-96-33.ngrok-free.app/recommend";
-    // Fallback endpoint for when the main one times out
-    const fallbackUrl = "https://fc70-34-125-96-33.ngrok-free.app/recommend/default";
-
+  Future<void> _fetchRecommendations() async {
     setState(() {
-      isLoading = true;
-      hasError = false;
-      errorMessage = "";
-      isRetrying = retryCount > 0;
+      _isLoading = true;
+      _hasError = false;
     });
 
     try {
-      // Use a shorter timeout for faster feedback
       final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "ngrok-skip-browser-warning": "true"
-        },
+        Uri.parse("https://a423-34-143-164-249.ngrok-free.app/ids"),
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "user_id": widget.userId,
           "profile_id": widget.profileId,
         }),
-      ).timeout(const Duration(seconds: 15)); // Reduced timeout to 15 seconds
+      ).timeout(const Duration(seconds: 240));
 
-      debugPrint("API Response: ${response.body}");
-
-      final responseBody = jsonDecode(response.body);
+      final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
         setState(() {
-          recommendationText = responseBody["recommendation"] ??
-              "No specific recommendation available. Please check your scanned dishes and health conditions.";
-          matchedDishes = List<String>.from(responseBody["matched_dishes"] ?? []);
-          isLoading = false;
-          retryCount = 0; // Reset retry count on success
+          _analyses = responseData['analyses'] ?? [];
+          _profileInfo = responseData['profile_info'];
+          _isLoading = false;
         });
+        _sortAnalyses();
+        _filterAnalyses();
       } else {
-        throw Exception("API Error: ${response.statusCode}\n${responseBody["error"] ?? "Unknown error"}");
-      }
-    } on TimeoutException {
-      debugPrint("Main API request timed out, trying fallback URL");
-
-      // Try the fallback endpoint with default recommendations
-      try {
-        final fallbackResponse = await http.get(
-          Uri.parse(fallbackUrl),
-          headers: {
-            "Accept": "application/json",
-            "ngrok-skip-browser-warning": "true"
-          },
-        ).timeout(const Duration(seconds: 10));
-
-        if (fallbackResponse.statusCode == 200) {
-          final fallbackData = jsonDecode(fallbackResponse.body);
-          setState(() {
-            recommendationText = fallbackData["recommendation"] ??
-                "Based on your profile, we recommend balanced meals with lean proteins and vegetables.";
-            matchedDishes = List<String>.from(fallbackData["matched_dishes"] ?? []);
-            isLoading = false;
-
-            // Add a note that this is a fallback recommendation
-            if (!recommendationText.contains("(Fallback)")) {
-              recommendationText = "$recommendationText\n\n(Fallback recommendation due to server timeout)";
-            }
-          });
-        } else {
-          throw Exception("Fallback API failed");
-        }
-      } catch (fallbackError) {
-        // Both main and fallback failed, handle this case
-        handleError("Connection timed out. The server might be busy. Please try again later.");
+        throw Exception(responseData['message'] ?? 'Failed to load recommendations');
       }
     } catch (e) {
-      handleError("Connection error: ${e.toString()}");
+      setState(() {
+        _hasError = true;
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      _showErrorSnackbar();
     }
   }
 
-  void handleError(String message) {
-    // Implement exponential backoff for retries
-    if (retryCount < maxRetries) {
-      setState(() {
-        retryCount++;
-        errorMessage = "$message\n\nRetrying ($retryCount/$maxRetries)...";
-        hasError = true;
-      });
-
-      // Wait longer between each retry
-      Future.delayed(Duration(seconds: retryCount * 2)).then((_) {
-        fetchRecommendations();
-      });
-    } else {
-      // Max retries reached, show error
-      setState(() {
-        errorMessage = "$message\n\nMax retries reached. Please try again later.";
-        hasError = true;
-        isLoading = false;
-      });
-
-      // Provide generic recommendations in case of failure
-      setState(() {
-        recommendationText = """Based on general health guidelines, we recommend:
-
-1. Focus on balanced meals with lean proteins and plenty of vegetables
-2. Stay hydrated by drinking water throughout the day
-3. Limit processed foods and added sugars
-4. Consider portion sizes appropriate for your needs
-
-(Generic recommendation due to connection issues)""";
-
-        // Add some sample dish matches as a fallback
-        matchedDishes = ["Grilled Chicken Salad", "Steamed Vegetables", "Baked Fish"];
-        hasError = false;
-      });
-    }
-  }
-
-  void filterDishes(String query) {
-    setState(() {
-      isSearching = query.isNotEmpty;
-      filteredDishes = matchedDishes.where((dish) {
-        return dish.toLowerCase().contains(query.toLowerCase());
-      }).toList();
+  void _sortAnalyses() {
+    _analyses.sort((a, b) {
+      final order = {'green': 0, 'yellow': 1, 'red': 2};
+      final aOrder = order[a['recommendation'].toLowerCase()] ?? 3;
+      final bOrder = order[b['recommendation'].toLowerCase()] ?? 3;
+      return aOrder.compareTo(bOrder);
     });
   }
 
-  Widget _buildHealthConditionChips() {
-    final activeConditions = widget.healthConditions.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
-
-    if (activeConditions.isEmpty) {
-      return Chip(
-        label: const Text("No health restrictions"),
-        backgroundColor: Colors.green,
-        labelStyle: const TextStyle(color: Colors.white),
-        avatar: const Icon(Icons.check, color: Colors.white),
-      );
-    }
-
-    return Wrap(
-      spacing: 8,
-      children: activeConditions.map((condition) {
-        return Chip(
-          label: Text(
-            condition.replaceAllMapped(
-              RegExp(r'^.| .'),
-                  (match) => match.group(0)!.toUpperCase(),
-            ),
-            style: const TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.orange[700],
-          avatar: const Icon(Icons.health_and_safety, size: 18, color: Colors.white),
-        );
-      }).toList(),
-    );
+  void _filterAnalyses() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      _searchQuery = query;
+      if (query.isEmpty) {
+        _filteredAnalyses = List.from(_analyses);
+      } else {
+        _filteredAnalyses = _analyses.where((analysis) {
+          final dishName = (analysis['dish'] ?? '').toString().toLowerCase();
+          final alternative = (analysis['alternative'] ?? '').toString().toLowerCase();
+          return dishName.contains(query) || alternative.contains(query);
+        }).toList();
+      }
+    });
   }
 
-  Widget _buildDishChip(String dish) {
-    return Chip(
-      label: Text(dish),
-      backgroundColor: secondaryColor,
-      side: BorderSide(color: primaryColor),
-    );
-  }
-
-  Widget _buildMatchedDishes() {
-    final dishesToShow = isSearching ? filteredDishes : matchedDishes;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Search recommended dishes...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: primaryColor),
-              ),
-              suffixIcon: searchController.text.isNotEmpty
-                  ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  searchController.clear();
-                  filterDishes('');
-                },
-              )
-                  : null,
-            ),
-            onChanged: filterDishes,
-          ),
+  void _showErrorSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_errorMessage),
+        backgroundColor: _dangerColor,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _fetchRecommendations,
         ),
-
-        Text(
-          isSearching ? "Search Results" : "Recommended Dishes",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: primaryColor,
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        if (dishesToShow.isEmpty)
-          Text(
-            isSearching ? "No matching dishes found" : "No dishes recommended yet",
-            style: const TextStyle(color: Colors.grey),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: dishesToShow.map((dish) => _buildDishChip(dish)).toList(),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRecommendationCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    );
+  }
+
+  Color _getCardColor(String recommendation) {
+    switch (recommendation.toLowerCase()) {
+      case 'green':
+        return _successColor.withOpacity(0.3);
+      case 'red':
+        return _dangerColor.withOpacity(0.3);
+      default:
+        return _warningColor.withOpacity(0.3);
+    }
+  }
+
+  Color _getBorderColor(String recommendation) {
+    switch (recommendation.toLowerCase()) {
+      case 'green':
+        return _successColor;
+      case 'red':
+        return _dangerColor;
+      default:
+        return _warningColor;
+    }
+  }
+
+  Widget _buildAnalysisCard(Map<String, dynamic> analysis) {
+    final cardColor = _getCardColor(analysis['recommendation']);
+    final borderColor = _getBorderColor(analysis['recommendation']);
+    final textColor = Colors.grey.shade800;
+    final isExpanded = _expandedCards[analysis['dish']] ?? false;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor.withOpacity(0.5), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.restaurant_menu, color: primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  "Recommendation",
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: primaryColor,
-                    fontWeight: FontWeight.bold,
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _expandedCards[analysis['dish']] = !isExpanded;
+                    });
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          analysis['dish'] ?? 'Unknown Dish',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: borderColor, width: 1),
+                        ),
+                        child: Text(
+                          analysis['recommendation'].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  child: isExpanded
+                      ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      Text(
+                        analysis['explanation'] ?? 'No explanation provided',
+                        style: TextStyle(
+                          color: textColor,
+                          height: 1.4,
+                        ),
+                      ),
+                      if (analysis['recommendation'] != 'Green') ...[
+                        const SizedBox(height: 12),
+                        RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: textColor, fontSize: 14),
+                            children: [
+                              TextSpan(
+                                text: 'Suggestion: ',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: _primaryColor,
+                                ),
+                              ),
+                              TextSpan(text: analysis['alternative'] ?? 'No suggestion'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade700.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search dishes (e.g., biryani, veg, chicken)',
+                    prefixIcon: Icon(Icons.search, color: _primaryColor),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.lightBlueAccent.withOpacity(0.2),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.black87),
+                  onChanged: (value) {
+                    _filterAnalyses();
+                  },
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('Veg'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Non-Veg'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Spicy'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Sweet'),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              recommendationText,
-              style: const TextStyle(fontSize: 16, height: 1.5),
-            ),
-            const SizedBox(height: 20),
-            _buildMatchedDishes(),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLoadingScreen() {
+  Widget _buildFilterChip(String label) {
+    return AnimatedScale(
+      scale: _searchQuery == label.toLowerCase() ? 1.1 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      child: FilterChip(
+        label: Text(label),
+        selected: _searchQuery == label.toLowerCase(),
+        onSelected: (bool selected) {
+          setState(() {
+            _searchController.text = selected ? label : '';
+            _filterAnalyses();
+          });
+        },
+        backgroundColor: Colors.white.withOpacity(0.2),
+        selectedColor: _primaryColor.withOpacity(0.4),
+        checkmarkColor: _primaryColor,
+        labelStyle: TextStyle(
+          color: _searchQuery == label.toLowerCase()
+              ? _primaryColor
+              : Colors.grey.shade700,
+        ),
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: _searchQuery == label.toLowerCase()
+                ? _primaryColor
+                : Colors.grey.shade300,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSearchBar(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Dishes',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _fetchRecommendations,
+            color: _primaryColor,
+            child: _filteredAnalyses.isEmpty
+                ? Center(
+              child: Text(
+                _searchQuery.isEmpty
+                    ? 'No dishes available'
+                    : 'No dishes found for "$_searchQuery"',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
+                ),
+              ),
+            )
+                : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _filteredAnalyses.length,
+              itemBuilder: (context, index) {
+                return _buildAnalysisCard(_filteredAnalyses[index]);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
           ),
           const SizedBox(height: 20),
-          Text(
-            isRetrying ? "Retrying... ($retryCount/$maxRetries)" : "Analyzing your dishes...",
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: primaryColor,
-            ),
-          ),
-          if (isRetrying) ...[
-            const SizedBox(height: 10),
-            Text(
-              "The server might be busy. Please wait...",
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            ),
-          ],
+          const Text('Analyzing your dishes...'),
         ],
       ),
     );
   }
 
-  Widget _buildErrorScreen() {
+  Widget _buildErrorState() {
     return Center(
-        child: Padding(
-        padding: const EdgeInsets.all(20),
-    child: Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-    const Icon(
-    Icons.error_outline,
-    color: Colors.red,
-    size: 60,
-    ),
-    const SizedBox(height: 20),
-    Text(
-    "Oops! Something went wrong",
-    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-    color: Colors.red,
-    ),
-    ),
-    const SizedBox(height: 10),
-    Text(
-    errorMessage,
-    textAlign: TextAlign.center,
-    style: const TextStyle(color: Colors.redAccent),
-    ),
-    const SizedBox(height: 20),
-      ElevatedButton.icon(
-        onPressed: () {
-          setState(() {
-            retryCount = 0; // Reset retry count before retrying
-            fetchRecommendations();
-          });
-        },
-        icon: const Icon(Icons.refresh),
-        label: const Text("Try Again"),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.redAccent,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: const TextStyle(fontSize: 16),
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 50,
+            color: _dangerColor,
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.refresh),
+            label: const Text('Try Again'),
+            onPressed: _fetchRecommendations,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
       ),
-    ],
-    ),
-        ),
     );
   }
 
@@ -395,24 +477,53 @@ class _OutputState extends State<Output> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Smart Food Recommendation"),
-        backgroundColor: primaryColor,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isLoading
-            ? _buildLoadingScreen()
-            : hasError
-            ? _buildErrorScreen()
-            : SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHealthConditionChips(),
-              const SizedBox(height: 20),
-              _buildRecommendationCard(),
-            ],
+        title: const Text(
+          'Recommendation',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
+        ),
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: Colors.white,
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/home');
+          },
+          tooltip: 'Back to Home',
+        ),
+        actions: [
+        ],
+      ),
+      body: AnimateGradient(
+        primaryColors: [
+          _cardBackground,
+          _primaryColor.withOpacity(0.4),
+        ],
+        secondaryColors: [
+          _primaryColor.withOpacity(0.4),
+          _cardBackground,
+        ],
+        child: _isLoading
+            ? _buildLoadingIndicator()
+            : _hasError
+            ? _buildErrorState()
+            : _buildContent(),
+      ),
+      floatingActionButton: ScaleTransition(
+        scale: _fabAnimation,
+        child: FloatingActionButton(
+          onPressed: () {
+            _fabController.forward().then((_) => _fabController.reverse());
+            _fetchRecommendations();
+          },
+          backgroundColor: _primaryColor,
+          child: const Icon(Icons.refresh, color: Colors.white),
+          tooltip: 'Refresh',
         ),
       ),
     );

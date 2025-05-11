@@ -5,6 +5,8 @@ import 'package:eat_wise/Utils/Apis_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:image/image.dart' as img;
 import 'output.dart';
 
 class ScanPage extends StatefulWidget {
@@ -25,7 +27,7 @@ class ScanPage extends StatefulWidget {
   State<ScanPage> createState() => _ScanPageState();
 }
 
-class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin {
+class _ScanPageState extends State<ScanPage> {
   late CameraController _cameraController;
   late List<CameraDescription> cameras;
   XFile? capturedImage;
@@ -33,10 +35,15 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
   bool isFlashOn = false;
   bool isFlashEffect = false;
   bool isProcessing = false;
+  late GenerativeModel geminiModel;
 
   @override
   void initState() {
     super.initState();
+    geminiModel = GenerativeModel(
+      model: 'gemini-1.5-flash',
+      apiKey: 'AIzaSyBqmf39zxQnvE3qoAIjGLl3pSyNdkWSs78', // Replace with your actual API key
+    );
     initializeCamera();
   }
 
@@ -56,7 +63,14 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     } catch (e) {
       debugPrint("Camera initialization error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to initialize camera")),
+        SnackBar(
+          content: const Text("Failed to initialize camera"),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: Colors.red[800],
+        ),
       );
     }
   }
@@ -81,52 +95,415 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
         capturedImage = image;
         isFlashEffect = false;
       });
-      showConfirmationDialog(image.path);
+      await processImageForConfirmation(image.path);
     } catch (e) {
       debugPrint("Error capturing image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to capture image")),
+        SnackBar(
+          content: const Text("Failed to capture image"),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: Colors.red[800],
+        ),
       );
     } finally {
       setState(() => isProcessing = false);
     }
   }
 
-  void showConfirmationDialog(String imagePath) {
+  Future<void> processImageForConfirmation(String imagePath) async {
+    setState(() => isProcessing = true);
+
+    try {
+      final textRecognizer = GoogleMlKit.vision.textRecognizer();
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final RecognizedText recognizedText =
+      await textRecognizer.processImage(inputImage);
+
+      List<Map<String, dynamic>> textWithBounds = [];
+      for (TextBlock block in recognizedText.blocks) {
+        for (TextLine line in block.lines) {
+          textWithBounds.add({
+            'text': line.text.trim(),
+            'boundingBox': line.boundingBox,
+          });
+        }
+      }
+
+      textRecognizer.close();
+
+      if (textWithBounds.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("No text detected in the image"),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            backgroundColor: Colors.orange[800],
+          ),
+        );
+        return;
+      }
+
+      List<String> allTextBlocks = textWithBounds.map((e) => e['text'] as String).toList();
+      List<String> extractedDishes = await _processTextWithGemini(allTextBlocks);
+
+      if (extractedDishes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("No dishes detected in the image"),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            backgroundColor: Colors.orange[800],
+          ),
+        );
+        return;
+      }
+
+      List<Map<String, dynamic>> dishesWithBounds = [];
+      for (String dish in extractedDishes) {
+        var match = textWithBounds.firstWhere(
+              (element) => element['text'].toLowerCase().contains(dish.toLowerCase()),
+          orElse: () => {'text': dish, 'boundingBox': const Rect.fromLTWH(0, 0, 0, 0)},
+        );
+        dishesWithBounds.add({
+          'text': dish,
+          'boundingBox': match['boundingBox'],
+        });
+      }
+
+      showDishConfirmationDialog(imagePath, dishesWithBounds);
+    } catch (e) {
+      debugPrint("Image processing error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Processing failed: ${e.toString()}"),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: Colors.red[800],
+        ),
+      );
+    } finally {
+      setState(() => isProcessing = false);
+    }
+  }
+
+  Future<List<String>> _processTextWithGemini(List<String> textBlocks) async {
+    try {
+      final prompt = """
+      I have extracted text from a restaurant menu image. Please analyze this text and:
+      1. Identify only the dish/food item names
+      2. Correct any spelling mistakes
+      3. Remove any non-food items (like prices, section headers, etc.)
+      4. Return only the cleaned food names in a comma-separated list
+      5. Do not include any beverages, drinks, or menu section titles
+      6. Keep names in their original language (don't translate)
+      
+      Here is the extracted text:
+      ${textBlocks.join('\n')}
+      
+      Please respond with ONLY the comma-separated list of food items, nothing else.
+      """;
+
+      final response = await geminiModel.generateContent([Content.text(prompt)]);
+      final text = response.text?.trim() ?? '';
+
+      if (text.isEmpty) return [];
+
+      List<String> dishes = text
+          .split(',')
+          .map((dish) => dish.trim())
+          .where((dish) => dish.isNotEmpty && dish.length > 3)
+          .toList();
+
+      return dishes;
+    } catch (e) {
+      debugPrint("Gemini processing error: $e");
+      return _fallbackProcessing(textBlocks);
+    }
+  }
+
+  List<String> _fallbackProcessing(List<String> textBlocks) {
+    const ignoreKeywords = [
+      "drinks", "beverages", "menu", "deals", "snacks",
+      "appetizers", "desserts", "specials", "combo", "platter", "wraps",
+      "sides", "price", "\$", "€", "£", "₹", "rs", "usd", "euro", "inr",
+    ];
+
+    List<String> extractedDishes = [];
+
+    for (String text in textBlocks) {
+      String lowerText = text.toLowerCase();
+
+      if (text.length > 3 &&
+          text.length < 40 &&
+          !text.contains(RegExp(r'\d')) &&
+          !ignoreKeywords.any((kw) => lowerText.contains(kw)) &&
+          text != text.toUpperCase() &&
+          _isValidDish(text)) {
+        extractedDishes.add(text);
+      }
+    }
+
+    return extractedDishes;
+  }
+
+  void showDishConfirmationDialog(String imagePath, List<Map<String, dynamic>> dishesWithBounds) {
+    List<String> dishes = dishesWithBounds.map((dish) => dish['text'] as String).toList();
+    List<TextEditingController> controllers = dishes.map((dish) => TextEditingController(text: dish)).toList();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Confirm Image"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.file(File(imagePath)),
-            if (isProcessing)
-              const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: CircularProgressIndicator(),
-              ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => isProcessing = false);
-            },
-            child: const Text("Retake", style: TextStyle(color: Colors.red)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              processImage(imagePath);
-            },
-            child: const Text("Confirm", style: TextStyle(color: Colors.green)),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          File imageFile = File(imagePath);
+          img.Image? decodedImage = img.decodeImage(imageFile.readAsBytesSync());
+          double imageWidth = decodedImage?.width.toDouble() ?? _cameraController.value.previewSize!.height;
+          double imageHeight = decodedImage?.height.toDouble() ?? _cameraController.value.previewSize!.width;
+          double screenWidth = MediaQuery.of(context).size.width - 40;
+          double displayHeight = (imageHeight / imageWidth) * screenWidth;
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            insetPadding: const EdgeInsets.all(20),
+            child: Stack(
+              children: [
+                Container(
+                  width: screenWidth,
+                  height: displayHeight,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: FileImage(imageFile),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: screenWidth * 0.9,
+                    height: displayHeight * 1.0,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Review Detected Dishes",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: dishes.length,
+                            itemBuilder: (context, index) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          dishes[index],
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              TextEditingController editController =
+                                              TextEditingController(text: dishes[index]);
+                                              return AlertDialog(
+                                                title: const Text("Edit Dish"),
+                                                content: TextField(
+                                                  controller: editController,
+                                                  decoration: const InputDecoration(
+                                                    hintText: "Enter dish name",
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.pop(context),
+                                                    child: const Text("Cancel"),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        dishes[index] = editController.text.trim();
+                                                        controllers[index].text = editController.text.trim();
+                                                      });
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: const Text("Save"),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.close, size: 20, color: Colors.red),
+                                        onPressed: () {
+                                          setState(() {
+                                            dishes.removeAt(index);
+                                            controllers.removeAt(index);
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  setState(() => isProcessing = false);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  side: const BorderSide(color: Colors.red),
+                                ),
+                                child: const Text(
+                                  "RETRY",
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  if (dishes.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text("Please keep at least one dish"),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        backgroundColor: Colors.orange[800],
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.pop(context);
+                                  _processConfirmedDishes(imagePath, dishes);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue[600],
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  "CONFIRM",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  Future<void> _processConfirmedDishes(
+      String imagePath, List<String> dishes) async {
+    setState(() => isProcessing = true);
+
+    try {
+      await _updateExtractedDishes(dishes);
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Output(
+            dishes: dishes,
+            healthConditions: widget.healthConditions,
+            userId: widget.userId,
+            profileId: widget.profileId,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Error processing confirmed dishes: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to process dishes: ${e.toString()}"),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: Colors.red[800],
+        ),
+      );
+    } finally {
+      setState(() => isProcessing = false);
+    }
   }
 
   void toggleFlash() async {
@@ -141,67 +518,8 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     }
   }
 
-  Future<void> processImage(String imagePath) async {
-    setState(() => isProcessing = true);
-
-    try {
-      final textRecognizer = GoogleMlKit.vision.textRecognizer();
-      final inputImage = InputImage.fromFilePath(imagePath);
-      final RecognizedText recognizedText =
-      await textRecognizer.processImage(inputImage);
-
-      List<String> extractedDishes = [];
-      const ignoreKeywords = [
-        "drinks", "beverages", "menu", "deals", "snacks",
-        "appetizers", "desserts", "specials", "combo", "platter", "wraps",
-        "sides",
-      ];
-
-      for (TextBlock block in recognizedText.blocks) {
-        for (TextLine line in block.lines) {
-          String text = line.text.trim();
-          String lowerText = text.toLowerCase();
-
-          if (text.length > 3 &&
-              text.length < 40 &&
-              !text.contains(RegExp(r'\d')) &&
-              !ignoreKeywords.any((kw) => lowerText.contains(kw)) &&
-              text != text.toUpperCase()) {
-            extractedDishes.add(text);
-          }
-        }
-      }
-
-      textRecognizer.close();
-
-      if (extractedDishes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No dishes detected in the image")),
-        );
-        return;
-      }
-
-      await _updateExtractedDishes(extractedDishes);
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => Output(
-            dishes: extractedDishes,
-            healthConditions: widget.healthConditions,
-            userId: widget.userId,
-            profileId: widget.profileId,
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint("Image processing error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Processing failed: ${e.toString()}")),
-      );
-    } finally {
-      setState(() => isProcessing = false);
-    }
+  bool _isValidDish(String text) {
+    return !text.contains("beverage") && !text.contains("drink");
   }
 
   Future<void> _updateExtractedDishes(List<String> dishes) async {
@@ -224,93 +542,161 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          widget.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          "Scan Menu",
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Colors.black.withOpacity(0.8),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 10),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
             icon: Icon(
-              isFlashOn ? Icons.flash_on : Icons.flash_off,
+              isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
               color: Colors.white,
+              size: 24,
             ),
             onPressed: toggleFlash,
-          )
+          ),
         ],
       ),
       body: Stack(
         children: [
           if (isCameraInitialized)
-            CameraPreview(_cameraController)
+            SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: CameraPreview(_cameraController),
+            )
           else
-            const Center(child: CircularProgressIndicator()),
+            const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            ),
 
-          // Scanning frame overlay
           Positioned(
-            top: 30,
-            left: 40,
+            top: mq.height * 0.15,
+            left: mq.width * 0.1,
             child: Container(
               width: mq.width * 0.8,
               height: mq.height * 0.6,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: 2),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Center(
-                child: Text(
-                  "Align the menu card here",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
+                border: Border.all(
+                  color: Colors.lightBlueAccent.withOpacity(0.8),
+                  width: 3,
                 ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Align menu within this frame",
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
           ),
 
-          // Capture button
           if (!isProcessing)
             Positioned(
-              bottom: 10,
-              left: mq.width / 2 - 40,
-              child: GestureDetector(
-                onTap: captureImage,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(80),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.6),
-                        blurRadius: 15,
-                        spreadRadius: 3,
+              bottom: mq.height * 0.05,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: captureImage,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.4),
+                        width: 4,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    size: 40,
-                    color: Colors.white,
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.primaryColorDark,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primaryColor.withOpacity(0.4),
+                            blurRadius: 10,
+                            spreadRadius: 3,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
 
-          // Processing indicator
           if (isProcessing)
-            const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            Container(
+              color: Colors.black.withOpacity(0.6),
+              width: double.infinity,
+              height: double.infinity,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        "Processing image...",
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-          // Flash effect
           if (isFlashEffect)
             Container(
               color: Colors.white.withOpacity(0.7),

@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:lottie/lottie.dart';
-
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import '../Chatbot/chat_bot.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,36 +17,71 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
   int _currentIndex = 0;
+  late AnimationController _animationController;
+  late Animation<double> _glowAnimation;
+
+  bool diabetes = false;
+  bool hypertension = false;
+  bool obesity = false;
+  bool highCholesterol = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize AnimationController
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+    // Initialize glow animation
+    _glowAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    nameController.dispose();
+    ageController.dispose();
+    super.dispose();
+  }
 
   String _capitalize(String name) {
     if (name.isEmpty) return name;
     return name[0].toUpperCase() + name.substring(1).toLowerCase();
   }
 
-  bool Diabetes = false;
-  bool Hypertension = false;
-  bool Obesity = false;
-  bool HighCholesterol = false;
-
   void _addUser() {
     nameController.clear();
     ageController.clear();
-    Diabetes = false;
-    Hypertension = false;
-    Obesity = false;
-    HighCholesterol = false;
+    diabetes = false;
+    hypertension = false;
+    obesity = false;
+    highCholesterol = false;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("New Profile",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              const Text(
+                "New Profile",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: StatefulBuilder(
             builder: (context, setState) {
               return SingleChildScrollView(
@@ -53,77 +89,95 @@ class _HomePageState extends State<HomePage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Basic Information",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Tell Us About You",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
                     const SizedBox(height: 16),
-                    const Text("Name",
-                        style: TextStyle(fontSize: 16)),
+                    const Text("Name", style: TextStyle(fontSize: 16, color: Colors.black54)),
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        hintText: "Enter name",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: InputDecoration(
+                        hintText: "Enter your name",
+                        filled: true,
+                        fillColor: Colors.blue.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text("Age",
-                        style: TextStyle(fontSize: 16)),
+                    const Text("Age", style: TextStyle(fontSize: 16, color: Colors.black54)),
                     TextField(
                       controller: ageController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: "Enter age",
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: InputDecoration(
+                        hintText: "Enter your age",
+                        filled: true,
+                        fillColor: Colors.blue.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text("Health Conditions",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Health Conditions",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                    ),
                     const SizedBox(height: 8),
-                    const Text("Select all health conditions that apply",
-                        style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    const Text(
+                      "Select conditions that apply",
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
                     const SizedBox(height: 12),
                     CheckboxListTile(
-                      title: const Text("Hypertension",
-                          style: TextStyle(fontSize: 16)),
-                      subtitle: const Text("High blood pressure requiring sodium restriction",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      value: Hypertension,
-                      onChanged: (value) =>
-                          setState(() => Hypertension = value ?? false),
+                      title: const Text("Hypertension", style: TextStyle(fontSize: 16, color: Colors.black87)),
+                      subtitle: const Text(
+                        "High blood pressure (watch sodium)",
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      value: hypertension,
+                      onChanged: (value) => setState(() => hypertension = value ?? false),
                       contentPadding: EdgeInsets.zero,
+                      activeColor: Colors.blue,
                     ),
                     CheckboxListTile(
-                      title: const Text("Diabetes",
-                          style: TextStyle(fontSize: 16)),
-                      subtitle: const Text("Requires careful carbohydrate management and blood sugar control",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      value: Diabetes,
-                      onChanged: (value) =>
-                          setState(() => Diabetes = value ?? false),
+                      title: const Text("Diabetes", style: TextStyle(fontSize: 16, color: Colors.black87)),
+                      subtitle: const Text(
+                        "Manage carbs & sugar",
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      value: diabetes,
+                      onChanged: (value) => setState(() => diabetes = value ?? false),
                       contentPadding: EdgeInsets.zero,
+                      activeColor: Colors.blue,
                     ),
                     CheckboxListTile(
-                      title: const Text("Obesity",
-                          style: TextStyle(fontSize: 16)),
-                      subtitle: const Text("Requires calorie control and balanced nutrition",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      value: Obesity,
-                      onChanged: (value) =>
-                          setState(() => Obesity = value ?? false),
+                      title: const Text("Obesity", style: TextStyle(fontSize: 16, color: Colors.black87)),
+                      subtitle: const Text(
+                        "Focus on calorie control",
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      value: obesity,
+                      onChanged: (value) => setState(() => obesity = value ?? false),
                       contentPadding: EdgeInsets.zero,
+                      activeColor: Colors.blue,
                     ),
                     CheckboxListTile(
-                      title: const Text("High Cholesterol",
-                          style: TextStyle(fontSize: 16)),
-                      subtitle: const Text("Requires reduced saturated fat and increased fiber intake",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      value: HighCholesterol,
-                      onChanged: (value) =>
-                          setState(() => HighCholesterol = value ?? false),
+                      title: const Text("High Cholesterol", style: TextStyle(fontSize: 16, color: Colors.black87)),
+                      subtitle: const Text(
+                        "Reduce fats, increase fiber",
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      value: highCholesterol,
+                      onChanged: (value) => setState(() => highCholesterol = value ?? false),
                       contentPadding: EdgeInsets.zero,
+                      activeColor: Colors.blue,
                     ),
                   ],
                 ),
@@ -133,30 +187,31 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.black)),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (nameController.text.isNotEmpty && ageController.text.isNotEmpty) {
-                  await ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid)
-                      .collection("profiles")
-                      .add({
+                  await ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid).collection("profiles").add({
                     'name': nameController.text,
                     'age': int.tryParse(ageController.text) ?? 0,
                     'healthConditions': {
-                      'Diabetes': Diabetes,
-                      'Hypertension': Hypertension,
-                      'Obesity': Obesity,
-                      'HighCholesterol': HighCholesterol,
+                      'Diabetes': diabetes,
+                      'Hypertension': hypertension,
+                      'Obesity': obesity,
+                      'HighCholesterol': highCholesterol,
                     },
                     'extractedDishes': [],
                     'createdAt': FieldValue.serverTimestamp(),
                   });
-                  Navigator.pop(context);
+                  if (mounted) Navigator.pop(context);
                 }
               },
               child: const Text("Add", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         );
@@ -169,22 +224,25 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text("Delete Profile"),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Delete Profile", style: TextStyle(color: Colors.black87)),
           content: const Text("Are you sure you want to delete this profile?"),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.black)),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () async {
-                await ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid)
-                    .collection("profiles").doc(profileId).delete();
-                Navigator.pop(context);
+                await ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid).collection("profiles").doc(profileId).delete();
+                if (mounted) Navigator.pop(context);
               },
-              child: const Text("Delete", style: TextStyle(color: Colors.black)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text("Delete", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         );
@@ -201,15 +259,13 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           children: [
             const Text(
-              " EatWise",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30, color: Colors.white),
-            ),
-            Lottie.asset(
-              'assets/animations/Home.json',
-              height: 60,
-              width: 60,
-              repeat: false,
-              fit: BoxFit.contain,
+              "EatWise",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 30,
+                color: Colors.white,
+                shadows: [Shadow(color: Colors.blueAccent, blurRadius: 10)],
+              ),
             ),
           ],
         ),
@@ -221,50 +277,64 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          image: DecorationImage(
+          image: const DecorationImage(
             image: AssetImage('assets/animations/image-removebg-preview.png'),
             fit: BoxFit.cover,
+            opacity: 0.3,
+          ),
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.shade700.withOpacity(0.1),
+              Colors.white.withOpacity(0.8),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Text(
-                "Profiles",
+                "My Profiles",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.blue.shade900,
+                  fontFamily: 'PlayfairDisplay',
+                  shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 5)],
                 ),
               ),
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: ApisUtils.users
-                    .doc(ApisUtils.auth.currentUser!.uid)
-                    .collection("profiles")
-                    .snapshots(),
+                stream: ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid).collection("profiles").snapshots(),
                 builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator(color: Colors.blue));
                   }
                   if (snapshot.hasError) {
-                    return const Center(child: Text("Error fetching data"));
+                    return const Center(child: Text("Error fetching data", style: TextStyle(color: Colors.red)));
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text("No profiles available"));
+                    return const Center(
+                      child: Text(
+                        "No profiles yet. Add a profile!",
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    );
                   }
 
                   final documents = snapshot.data!.docs;
 
                   return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     itemCount: documents.length,
                     itemBuilder: (context, index) {
                       final doc = documents[index];
                       final docData = doc.data() as Map<String, dynamic>;
-                      final healthConditions = docData['healthConditions'] as Map<String, dynamic>;
+                      final healthConditions = docData['healthConditions'] as Map<String, dynamic>? ?? {};
 
                       List<String> diseases = [];
                       if (healthConditions['Diabetes'] == true) diseases.add("Diabetes");
@@ -273,7 +343,7 @@ class _HomePageState extends State<HomePage> {
                       if (healthConditions['HighCholesterol'] == true) diseases.add("High Cholesterol");
 
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Slidable(
                           key: ValueKey(doc.id),
                           startActionPane: ActionPane(
@@ -285,7 +355,7 @@ class _HomePageState extends State<HomePage> {
                                 foregroundColor: Colors.white,
                                 backgroundColor: Colors.red,
                                 label: "Delete",
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(15),
                               ),
                             ],
                           ),
@@ -308,127 +378,186 @@ class _HomePageState extends State<HomePage> {
                                 foregroundColor: Colors.white,
                                 backgroundColor: Colors.green,
                                 label: "Scan",
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(15),
                               ),
                             ],
                           ),
-                          child: Stack(
-                            children: [
-                              Card(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                color: Colors.white70,
-                                elevation: 3,
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(15),
-                                  title: Text.rich(
-                                    TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: "${_capitalize(docData['name'])}\n",
-                                          style: const TextStyle(
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: "Age: ${docData['age']}\n",
-                                          style: const TextStyle(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        ...diseases.map((disease) => WidgetSpan(
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            margin: EdgeInsets.only(bottom: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.green[100],
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              disease,
-                                              style: TextStyle(
-                                                color: Colors.green[800],
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 15,
+                          child: AnimatedBuilder(
+                            animation: _animationController,
+                            builder: (context, child) {
+                              double glow = _glowAnimation.value;
+                              return Transform(
+                                transform: Matrix4.identity()
+                                  ..rotateY(math.sin(_animationController.value * 2 * math.pi) * 0.02),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.blue.shade700.withOpacity(0.2),
+                                        Colors.white.withOpacity(0.5),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.blueAccent.withOpacity(0.3 * glow),
+                                        blurRadius: 15,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: BackdropFilter(
+                                      filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(15),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 30,
+                                              backgroundColor: Colors.blue.shade700,
+                                              child: Text(
+                                                _capitalize(docData['name'] ?? '')[0],
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        )).toList(),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                right: 18,
-                                top: 15,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.arrow_back_ios,
-                                          size: 12,
-                                          color: Colors.grey,
-                                        ),
-                                        const Text(
-                                          "Swipe",
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 12,
-                                          color: Colors.grey,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 20), // Add space between swipe hint and button
-                                    GestureDetector(
-                                      onTap: () {
-                                        Get.to(() => ChatScreen(
-                                          initialMessage:
-                                          "My name is ${docData['name']}, my age is ${docData['age']} and I have ${diseases.join(", ") }",
-                                        ));
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade400,
-                                          borderRadius: BorderRadius.circular(20),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.grey.withOpacity(0.3),
-                                              spreadRadius: 1,
-                                              blurRadius: 3,
-                                              offset: const Offset(0, 2),
+                                            const SizedBox(width: 15),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    _capitalize(docData['name'] ?? 'Unknown'),
+                                                    style: TextStyle(
+                                                      color: Colors.blue.shade900,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 20,
+                                                      fontFamily: 'PlayfairDisplay',
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    "Age: ${docData['age'] ?? 'N/A'}",
+                                                    style: const TextStyle(
+                                                      color: Colors.black54,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Wrap(
+                                                    spacing: 6,
+                                                    runSpacing: 6,
+                                                    children: diseases.map((disease) => Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        gradient: LinearGradient(
+                                                          colors: [Colors.green.shade100, Colors.green.shade200],
+                                                          begin: Alignment.topLeft,
+                                                          end: Alignment.bottomRight,
+                                                        ),
+                                                        borderRadius: BorderRadius.circular(10),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.green.withOpacity(0.2),
+                                                            blurRadius: 5,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: Text(
+                                                        disease,
+                                                        style: TextStyle(
+                                                          color: Colors.green.shade800,
+                                                          fontWeight: FontWeight.w600,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    )).toList(),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: const [
+                                                    Icon(
+                                                      Icons.arrow_back_ios,
+                                                      size: 12,
+                                                      color: Colors.white70,
+                                                    ),
+                                                    Text(
+                                                      "Swipe",
+                                                      style: TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    Icon(
+                                                      Icons.arrow_forward_ios,
+                                                      size: 12,
+                                                      color: Colors.white70,
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 8),
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    Get.to(() => ChatScreen(
+                                                      initialMessage:
+                                                      "My name is ${docData['name'] ?? 'Unknown'}, my age is ${docData['age'] ?? 'N/A'} and I have ${diseases.join(", ")}",
+                                                    ));
+                                                  },
+                                                  child: AnimatedBuilder(
+                                                    animation: _animationController,
+                                                    builder: (context, child) {
+                                                      return Container(
+                                                        padding: const EdgeInsets.all(8),
+                                                        decoration: BoxDecoration(
+                                                          shape: BoxShape.circle,
+                                                          gradient: RadialGradient(
+                                                            colors: [
+                                                              Colors.blue.shade200,
+                                                              Colors.blue.shade700,
+                                                            ],
+                                                            radius: 0.8,
+                                                          ),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: Colors.blueAccent.withOpacity(0.5 * glow),
+                                                              blurRadius: 10,
+                                                              spreadRadius: 2,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        child: Image.asset(
+                                                          'assets/animations/chat-bot_icon.png',
+                                                          width: 30,
+                                                          height: 30,
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
-                                        child: Image.asset(
-                                          'assets/animations/chat-bot_icon.png', // Your image path
-                                          width: 30,
-                                          height: 30,
-                                        ),
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
                         ),
                       );
@@ -453,6 +582,7 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(
                   Icons.home,
                   color: _currentIndex == 0 ? Colors.blue.shade200 : Colors.grey,
+                  size: 28,
                 ),
                 onPressed: () {
                   setState(() {
@@ -465,6 +595,7 @@ class _HomePageState extends State<HomePage> {
                 icon: Icon(
                   Icons.person,
                   color: _currentIndex == 1 ? Colors.blue.shade200 : Colors.grey,
+                  size: 28,
                 ),
                 onPressed: () {
                   setState(() {
@@ -477,16 +608,34 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      floatingActionButton: SizedBox(
-        width: 65,
-        height: 65,
-        child: FloatingActionButton(
-          onPressed: _addUser,
-          backgroundColor: Colors.blue.shade200,
-          elevation: 10,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white, size: 40),
-        ),
+      floatingActionButton: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          double glow = _glowAnimation.value;
+          return Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blueAccent.withOpacity(0.5 * glow),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: 65,
+              height: 65,
+              child: FloatingActionButton(
+                onPressed: _addUser,
+                backgroundColor: Colors.blue.shade200,
+                elevation: 10,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add, color: Colors.white, size: 40),
+              ),
+            ),
+          );
+        },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );

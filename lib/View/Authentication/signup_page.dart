@@ -7,6 +7,8 @@ import 'package:eat_wise/Widgets/TextFields/login/ls_textfield.dart';
 import 'package:eat_wise/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -15,128 +17,261 @@ class SignupPage extends StatefulWidget {
   State<SignupPage> createState() => _SignupPageState();
 }
 
-final TextEditingController emailController = TextEditingController();
-final TextEditingController passwordController = TextEditingController();
-final TextEditingController confirmPasswordController = TextEditingController();
-
 class _SignupPageState extends State<SignupPage> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  // Firestore instance
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Email validation regex
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
+  // Save user data to Firestore
+  Future<void> _saveUserToFirestore(String uid, {String? email, bool isGuest = false}) async {
+    await _firestore.collection('users').doc(uid).set({
+      'email': email ?? 'guest_${uid}@eatwise.com',
+      'isGuest': isGuest,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Handle Guest Login
+  Future<void> _handleGuestLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await FirebaseAuth.instance.signInAnonymously();
+      final user = userCredential.user;
+      if (user != null) {
+        await _saveUserToFirestore(user.uid, isGuest: true);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        }
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Guest login failed: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Handle Email/Password Signup
+  Future<void> _handleEmailSignup() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await ApisUtils.auth.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+      );
+      final user = userCredential.user;
+      if (user != null) {
+        await _saveUserToFirestore(user.uid, email: emailController.text.trim());
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        }
+      }
+    } catch (e) {
+      Get.snackbar("Error", e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     mq = MediaQuery.of(context).size;
 
     return SafeArea(
       child: Scaffold(
-        backgroundColor: Colors.blue.shade400,
-        body: Center(
+        body: Container(
+          height: mq.height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.blue.shade700, Colors.grey.shade100],
+            ),
+          ),
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Let's Get Started",
-                  style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: MyColors.whiteColor),
-                ),
-                Text(
-                  "Create an account to continue",
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: MyColors.whiteColor),
-                ),
-                SizedBox(height: mq.height * 0.05),
-
-                // Signup Card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  width: mq.width * 0.9,
-                  decoration: BoxDecoration(
-                    color: MyColors.whiteColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        spreadRadius: 2,
-                      )
-                    ],
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: mq.height * 0.03),
+                  // App Logo
+                  Icon(
+                    Icons.restaurant_menu_rounded,
+                    size: 70,
+                    color: Colors.white,
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      LsTextField(
-                        hintText: "abc@example.com",
-                        labelText: "Email",
-                        controller: emailController,
-                        secure: false,
-                      ),
-                      const SizedBox(height: 16),
-                      LsTextField(
-                        labelText: "Password",
-                        controller: passwordController,
-                        secure: true,
-                      ),
-                      const SizedBox(height: 16),
-                      LsTextField(
-                        labelText: "Confirm Password",
-                        controller: confirmPasswordController,
-                        secure: true,
-                      ),
-                      const SizedBox(height: 24),
-                      LsButton(
-                        text: "Sign Up",
-                        ontap: () {
-                          if (passwordController.text ==
-                              confirmPasswordController.text) {
-                            ApisUtils.auth
-                                .createUserWithEmailAndPassword(
-                                    email: emailController.text,
-                                    password: passwordController.text)
-                                .then((onValue) {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const HomePage()));
-                            }).onError(
-                              (error, stackTrace) {
-                                Get.snackbar("Error", error.toString());
-                              },
+                  SizedBox(height: mq.height * 0.015),
+                  Text(
+                    "EatWise",
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  Text(
+                    "Create Your Account",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  SizedBox(height: mq.height * 0.02),
+                  Container(
+                    margin: EdgeInsets.symmetric(horizontal: mq.width * 0.06),
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 12,
+                          spreadRadius: 3,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        LsTextField(
+                          hintText: "email@example.com",
+                          labelText: "Email",
+                          controller: emailController,
+                          secure: false,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Please enter your email";
+                            }
+                            if (!_isValidEmail(value)) {
+                              return "Please enter a valid email";
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: mq.height * 0.025),
+                        LsTextField(
+                          labelText: "Password",
+                          controller: passwordController,
+                          secure: true,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Please enter your password";
+                            }
+                            if (value.length < 6) {
+                              return "Password must be at least 6 characters";
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: mq.height * 0.025),
+                        LsTextField(
+                          labelText: "Confirm Password",
+                          controller: confirmPasswordController,
+                          secure: true,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Please confirm your password";
+                            }
+                            if (value != passwordController.text) {
+                              return "Passwords do not match";
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: mq.height * 0.035),
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                        )
+                            : LsButton(
+                          text: "Sign Up",
+                          ontap: _handleEmailSignup,
+                        ),
+                        SizedBox(height: mq.height * 0.02),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginPage(),
+                              ),
                             );
-                          } else {
-                            Get.snackbar("Error", "Passwords do not match");
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text("Already have an account?"),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const LoginPage()));
-                            },
-                            child: const Text(
-                              "Login",
-                              style: TextStyle(color: Colors.blue),
+                          },
+                          child: Text(
+                            "Already have an account? Log In",
+                            style: TextStyle(
+                              color: Colors.blue.shade800,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
-                          )
-                        ],
-                      )
-                    ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(height: mq.height * 0.05),
-              ],
+                  SizedBox(height: mq.height * 0.035),
+                  // Guest Login Button
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: mq.width * 0.06),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleGuestLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 3,
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: const Text("Continue as Guest"),
+                    ),
+                  ),
+                  SizedBox(height: mq.height * 0.06),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
   }
 }

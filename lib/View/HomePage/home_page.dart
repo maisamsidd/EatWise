@@ -1,14 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eat_wise/Controllers/theme_controller.dart';
 import 'package:eat_wise/Utils/Apis_utils.dart';
 import 'package:eat_wise/View/Ai_related_work/ScanPage/scan_page.dart';
 import 'package:eat_wise/View/HomePage/userProfile.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:lottie/lottie.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import '../Ai_related_work/ScanPage/output.dart';
 import '../Chatbot/chat_bot.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,35 +19,52 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
   int _currentIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _glowAnimation;
+  late AnimationController _fabVanishController;
+  late Animation<double> _fabVanishAnimation;
+  bool _isAnimationInitialized = false; // Flag to track initialization
 
   bool diabetes = false;
   bool hypertension = false;
   bool obesity = false;
   bool highCholesterol = false;
 
+  final ThemeController themeController = Get.find<ThemeController>();
+
   @override
   void initState() {
     super.initState();
-    // Initialize AnimationController
+    // Glow animation for FAB
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
-    // Initialize glow animation
     _glowAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    // Vanishing animation for FAB
+    _fabVanishController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fabVanishAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _fabVanishController, curve: Curves.easeInOut),
+    );
+
+    // Mark animations as initialized
+    _isAnimationInitialized = true;
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _fabVanishController.dispose();
     nameController.dispose();
     ageController.dispose();
     super.dispose();
@@ -70,17 +89,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         return AlertDialog(
           title: Row(
             children: [
-              const Text(
+              Text(
                 "New Profile",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Colors.blue.shade700,
                 ),
               ),
             ],
           ),
-          backgroundColor: Colors.white.withOpacity(0.95),
+          backgroundColor: themeController.isDarkMode.value ? Colors.grey[900] : Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: StatefulBuilder(
             builder: (context, setState) {
@@ -89,18 +108,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Tell Us About You",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    const Text("Name", style: TextStyle(fontSize: 16, color: Colors.black54)),
+                    Text(
+                      "Name",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black54,
+                      ),
+                    ),
                     TextField(
                       controller: nameController,
+                      style: TextStyle(
+                        color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                      ),
                       decoration: InputDecoration(
                         hintText: "Enter your name",
+                        hintStyle: TextStyle(
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[600],
+                        ),
                         filled: true,
-                        fillColor: Colors.blue.shade50,
+                        fillColor: themeController.isDarkMode.value ? Colors.grey[800] : Colors.blue.shade50,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -109,14 +144,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text("Age", style: TextStyle(fontSize: 16, color: Colors.black54)),
+                    Text(
+                      "Age",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black54,
+                      ),
+                    ),
                     TextField(
                       controller: ageController,
                       keyboardType: TextInputType.number,
+                      style: TextStyle(
+                        color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                      ),
                       decoration: InputDecoration(
                         hintText: "Enter your age",
+                        hintStyle: TextStyle(
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[600],
+                        ),
                         filled: true,
-                        fillColor: Colors.blue.shade50,
+                        fillColor: themeController.isDarkMode.value ? Colors.grey[800] : Colors.blue.shade50,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -125,59 +172,106 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       "Health Conditions",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "Select conditions that apply",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     CheckboxListTile(
-                      title: const Text("Hypertension", style: TextStyle(fontSize: 16, color: Colors.black87)),
-                      subtitle: const Text(
+                      title: Text(
+                        "Hypertension",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
                         "High blood pressure (watch sodium)",
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                        ),
                       ),
                       value: hypertension,
                       onChanged: (value) => setState(() => hypertension = value ?? false),
                       contentPadding: EdgeInsets.zero,
-                      activeColor: Colors.blue,
+                      activeColor: Colors.blue.shade700,
+                      checkColor: Colors.white,
                     ),
                     CheckboxListTile(
-                      title: const Text("Diabetes", style: TextStyle(fontSize: 16, color: Colors.black87)),
-                      subtitle: const Text(
+                      title: Text(
+                        "Diabetes",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
                         "Manage carbs & sugar",
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                        ),
                       ),
                       value: diabetes,
                       onChanged: (value) => setState(() => diabetes = value ?? false),
                       contentPadding: EdgeInsets.zero,
-                      activeColor: Colors.blue,
+                      activeColor: Colors.blue.shade700,
+                      checkColor: Colors.white,
                     ),
                     CheckboxListTile(
-                      title: const Text("Obesity", style: TextStyle(fontSize: 16, color: Colors.black87)),
-                      subtitle: const Text(
+                      title: Text(
+                        "Obesity",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
                         "Focus on calorie control",
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                        ),
                       ),
                       value: obesity,
                       onChanged: (value) => setState(() => obesity = value ?? false),
                       contentPadding: EdgeInsets.zero,
-                      activeColor: Colors.blue,
+                      activeColor: Colors.blue.shade700,
+                      checkColor: Colors.white,
                     ),
                     CheckboxListTile(
-                      title: const Text("High Cholesterol", style: TextStyle(fontSize: 16, color: Colors.black87)),
-                      subtitle: const Text(
+                      title: Text(
+                        "High Cholesterol",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
                         "Reduce fats, increase fiber",
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                        ),
                       ),
                       value: highCholesterol,
                       onChanged: (value) => setState(() => highCholesterol = value ?? false),
                       contentPadding: EdgeInsets.zero,
-                      activeColor: Colors.blue,
+                      activeColor: Colors.blue.shade700,
+                      checkColor: Colors.white,
                     ),
                   ],
                 ),
@@ -187,7 +281,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(
+                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -209,7 +308,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               },
               child: const Text("Add", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -224,14 +322,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white.withOpacity(0.95),
+          backgroundColor: themeController.isDarkMode.value ? Colors.grey[900] : Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Delete Profile", style: TextStyle(color: Colors.black87)),
-          content: const Text("Are you sure you want to delete this profile?"),
+          title: Text(
+            "Delete Profile",
+            style: TextStyle(
+              color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+            ),
+          ),
+          content: Text(
+            "Are you sure you want to delete this profile?",
+            style: TextStyle(
+              color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black87,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text(
+                "Cancel",
+                style: TextStyle(
+                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -250,78 +363,301 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            const Text(
-              "EatWise",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 30,
-                color: Colors.white,
-                shadows: [Shadow(color: Colors.blueAccent, blurRadius: 10)],
-              ),
+  void _confirmDeleteScan(String scanId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: themeController.isDarkMode.value ? Colors.grey[900] : Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            "Delete Scan",
+            style: TextStyle(
+              color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
             ),
-          ],
-        ),
-        backgroundColor: Colors.blue.shade700,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(50)),
-        ),
-        toolbarHeight: 100,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          image: const DecorationImage(
-            image: AssetImage('assets/animations/image-removebg-preview.png'),
-            fit: BoxFit.cover,
-            opacity: 0.3,
           ),
-          gradient: LinearGradient(
-            colors: [
-              Colors.blue.shade700.withOpacity(0.1),
-              Colors.white.withOpacity(0.8),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          content: Text(
+            "Are you sure you want to delete this scan?",
+            style: TextStyle(
+              color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black87,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
               child: Text(
-                "My Profiles",
+                "Cancel",
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
-                  fontFamily: 'PlayfairDisplay',
-                  shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 5)],
+                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
                 ),
               ),
             ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
+            ElevatedButton(
+              onPressed: () async {
+                await ApisUtils.users
+                    .doc(ApisUtils.auth.currentUser!.uid)
+                    .collection('scans')
+                    .doc(scanId)
+                    .delete();
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text("Delete", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentScans() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            "Recent Scans",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: themeController.isDarkMode.value ? Colors.blue.shade300 : Colors.blue.shade900,
+              fontFamily: 'PlayfairDisplay',
+              shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 5)],
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 200,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: ApisUtils.users
+                .doc(ApisUtils.auth.currentUser!.uid)
+                .collection('scans')
+                .orderBy('timestamp', descending: true)
+                .limit(5)
+                .snapshots(),
+            builder: (context, AsyncSnapshot<QuerySnapshot> scanSnapshot) {
+              if (scanSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Colors.blue));
+              }
+              if (scanSnapshot.hasError || !scanSnapshot.hasData || scanSnapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Text(
+                    "No recent scans available",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                    ),
+                  ),
+                );
+              }
+
+              final scans = scanSnapshot.data!.docs;
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: scans.length,
+                itemBuilder: (context, index) {
+                  final scan = scans[index];
+                  final scanData = scan.data() as Map<String, dynamic>;
+                  final timestamp = (scanData['timestamp'] as Timestamp?)?.toDate();
+                  final formattedDate = timestamp != null
+                      ? DateFormat('MMM dd, yyyy HH:mm').format(timestamp)
+                      : 'Unknown date';
+                  final profileId = scanData['profileId'];
+                  final analyses = scanData['analyses'] as List<dynamic>? ?? [];
+                  final dishes = List<String>.from(scanData['dishes'] ?? []);
+
+                  return StreamBuilder<DocumentSnapshot>(
+                    stream: ApisUtils.users
+                        .doc(ApisUtils.auth.currentUser!.uid)
+                        .collection('profiles')
+                        .doc(profileId)
+                        .snapshots(),
+                    builder: (context, AsyncSnapshot<DocumentSnapshot> profileSnapshot) {
+                      if (!profileSnapshot.hasData) return const SizedBox.shrink();
+                      final profileData = profileSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                      final profileName = profileData['name'] ?? 'Unknown';
+                      final healthConditions = profileData['healthConditions'] as Map<String, dynamic>? ?? {};
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Slidable(
+                          key: ValueKey(scan.id),
+                          startActionPane: ActionPane(
+                            motion: const StretchMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (context) => _confirmDeleteScan(scan.id),
+                                icon: Icons.delete_forever,
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ],
+                          ),
+                          child: GestureDetector(
+                            onTap: () {
+                              Get.to(() => Output(
+                                userId: ApisUtils.auth.currentUser!.uid,
+                                profileId: profileId,
+                                dishes: dishes,
+                                healthConditions: {
+                                  'Diabetes': healthConditions['Diabetes'] ?? false,
+                                  'Hypertension': healthConditions['Hypertension'] ?? false,
+                                  'Obesity': healthConditions['Obesity'] ?? false,
+                                  'HighCholesterol': healthConditions['HighCholesterol'] ?? false,
+                                },
+                                savedAnalyses: analyses,
+                              ));
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: themeController.isDarkMode.value
+                                    ? Colors.grey[800]
+                                    : Colors.white.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(themeController.isDarkMode.value ? 0.2 : 0.1),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$profileName\'s Scan',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: themeController.isDarkMode.value ? Colors.blue.shade300 : Colors.blue.shade900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Date: $formattedDate',
+                                    style: TextStyle(
+                                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[700],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _navigateToSettings() async {
+    // Start the vanishing animation
+    await _fabVanishController.forward();
+    // Navigate to SettingsPage
+    Get.to(() => const SettingsPage());
+    // Reset the animation for when the user returns
+    _fabVanishController.reset();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() => Container(
+      decoration: BoxDecoration(
+        image: const DecorationImage(
+          image: AssetImage('assets/animations/image-removebg-preview.png'),
+          fit: BoxFit.cover,
+          opacity: 0.5,
+        ),
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue.shade400.withOpacity(0.8),
+            themeController.isDarkMode.value
+                ? Colors.blue.shade900.withOpacity(0.7)
+                : Colors.white.withOpacity(0.9),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Row(
+            children: [
+              Text(
+                "EatWise",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 30,
+                  color: Colors.white,
+                  shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 10)],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blue.shade700,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(50)),
+          ),
+          toolbarHeight: 100,
+        ),
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  "My Profiles",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: themeController.isDarkMode.value ? Colors.blue.shade300 : Colors.blue.shade900,
+                    fontFamily: 'PlayfairDisplay',
+                    shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 5)],
+                  ),
+                ),
+              ),
+              StreamBuilder<QuerySnapshot>(
                 stream: ApisUtils.users.doc(ApisUtils.auth.currentUser!.uid).collection("profiles").snapshots(),
                 builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator(color: Colors.blue));
                   }
                   if (snapshot.hasError) {
-                    return const Center(child: Text("Error fetching data", style: TextStyle(color: Colors.red)));
+                    return Center(
+                      child: Text(
+                        "Error fetching data",
+                        style: TextStyle(
+                          color: themeController.isDarkMode.value ? Colors.red[300] : Colors.red,
+                        ),
+                      ),
+                    );
                   }
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         "No profiles yet. Add a profile!",
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                        ),
                       ),
                     );
                   }
@@ -329,7 +665,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   final documents = snapshot.data!.docs;
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: documents.length,
                     itemBuilder: (context, index) {
                       final doc = documents[index];
@@ -366,7 +704,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                 onPressed: (context) => Get.to(() => ScanPage(
                                   userId: ApisUtils.auth.currentUser!.uid,
                                   profileId: doc.id,
-                                  name: docData['name'],
+                                  name: docData['name']?.toString() ?? 'Unknown',
                                   healthConditions: {
                                     'Diabetes': healthConditions['Diabetes'] ?? false,
                                     'Hypertension': healthConditions['Hypertension'] ?? false,
@@ -394,8 +732,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                     borderRadius: BorderRadius.circular(20),
                                     gradient: LinearGradient(
                                       colors: [
-                                        Colors.blue.shade700.withOpacity(0.2),
-                                        Colors.white.withOpacity(0.5),
+                                        Colors.blue.shade700.withOpacity(themeController.isDarkMode.value ? 0.1 : 0.2),
+                                        themeController.isDarkMode.value ? Colors.grey[800]!.withOpacity(0.8) : Colors.white.withOpacity(0.5),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
@@ -436,7 +774,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                   Text(
                                                     _capitalize(docData['name'] ?? 'Unknown'),
                                                     style: TextStyle(
-                                                      color: Colors.blue.shade900,
+                                                      color: themeController.isDarkMode.value ? Colors.blue.shade300 : Colors.blue.shade900,
                                                       fontWeight: FontWeight.bold,
                                                       fontSize: 20,
                                                       fontFamily: 'PlayfairDisplay',
@@ -445,8 +783,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     "Age: ${docData['age'] ?? 'N/A'}",
-                                                    style: const TextStyle(
-                                                      color: Colors.black54,
+                                                    style: TextStyle(
+                                                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black54,
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -458,7 +796,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                       decoration: BoxDecoration(
                                                         gradient: LinearGradient(
-                                                          colors: [Colors.green.shade100, Colors.green.shade200],
+                                                          colors: themeController.isDarkMode.value
+                                                              ? [Colors.green.shade700, Colors.green.shade900]
+                                                              : [Colors.green.shade100, Colors.green.shade200],
                                                           begin: Alignment.topLeft,
                                                           end: Alignment.bottomRight,
                                                         ),
@@ -473,7 +813,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                       child: Text(
                                                         disease,
                                                         style: TextStyle(
-                                                          color: Colors.green.shade800,
+                                                          color: themeController.isDarkMode.value ? Colors.green.shade200 : Colors.green.shade800,
                                                           fontWeight: FontWeight.w600,
                                                           fontSize: 12,
                                                         ),
@@ -488,16 +828,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                               children: [
                                                 Row(
                                                   mainAxisSize: MainAxisSize.min,
-                                                  children: const [
+                                                  children: [
                                                     Icon(
                                                       Icons.arrow_back_ios,
                                                       size: 12,
-                                                      color: Colors.white70,
+                                                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.white70,
                                                     ),
                                                     Text(
                                                       "Swipe",
                                                       style: TextStyle(
-                                                        color: Colors.white70,
+                                                        color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.white70,
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.w500,
                                                       ),
@@ -505,7 +845,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                     Icon(
                                                       Icons.arrow_forward_ios,
                                                       size: 12,
-                                                      color: Colors.white70,
+                                                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.white70,
                                                     ),
                                                   ],
                                                 ),
@@ -533,7 +873,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                                           ),
                                                           boxShadow: [
                                                             BoxShadow(
-                                                              color: Colors.blueAccent.withOpacity(0.5 * glow),
+                                                              color: Colors.blueAccent.withOpacity(0.5 * _glowAnimation.value),
                                                               blurRadius: 10,
                                                               spreadRadius: 2,
                                                             ),
@@ -565,79 +905,86 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   );
                 },
               ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        color: Colors.blue.shade700,
-        notchMargin: 8.0,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.home,
-                  color: _currentIndex == 0 ? Colors.blue.shade200 : Colors.grey,
-                  size: 28,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _currentIndex = 0;
-                  });
-                },
-              ),
-              const SizedBox(width: 48),
-              IconButton(
-                icon: Icon(
-                  Icons.person,
-                  color: _currentIndex == 1 ? Colors.blue.shade200 : Colors.grey,
-                  size: 28,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _currentIndex = 1;
-                  });
-                  Get.to(() => const SettingsPage());
-                },
-              ),
+              const SizedBox(height: 24),
+              _buildRecentScans(),
             ],
           ),
         ),
-      ),
-      floatingActionButton: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          double glow = _glowAnimation.value;
-          return Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blueAccent.withOpacity(0.5 * glow),
-                  blurRadius: 15,
-                  spreadRadius: 2,
+        bottomNavigationBar: BottomAppBar(
+          shape: const CircularNotchedRectangle(),
+          color: Colors.blue.shade700,
+          notchMargin: 8.0,
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.home,
+                    color: _currentIndex == 0 ? Colors.blue.shade200 : Colors.grey,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _currentIndex = 0;
+                    });
+                  },
+                ),
+                const SizedBox(width: 48),
+                IconButton(
+                  icon: Icon(
+                    Icons.person,
+                    color: _currentIndex == 1 ? Colors.blue.shade200 : Colors.grey,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _currentIndex = 1;
+                    });
+                    _navigateToSettings();
+                  },
                 ),
               ],
             ),
-            child: SizedBox(
-              width: 65,
-              height: 65,
-              child: FloatingActionButton(
-                onPressed: _addUser,
-                backgroundColor: Colors.blue.shade200,
-                elevation: 10,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.add, color: Colors.white, size: 40),
-              ),
-            ),
-          );
-        },
+          ),
+        ),
+        floatingActionButton: _isAnimationInitialized
+            ? ScaleTransition(
+          scale: _fabVanishAnimation,
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              double glow = _glowAnimation.value;
+              return Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blueAccent.withOpacity(0.5 * glow),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: 65,
+                  height: 65,
+                  child: FloatingActionButton(
+                    onPressed: _addUser,
+                    backgroundColor: Colors.blue.shade200,
+                    elevation: 10,
+                    shape: const CircleBorder(),
+                    child: const Icon(Icons.add, color: Colors.white, size: 40),
+                  ),
+                ),
+              );
+            },
+          ),
+        )
+            : const SizedBox.shrink(), // Fallback widget until animation is initialized
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-    );
+    ));
   }
 }

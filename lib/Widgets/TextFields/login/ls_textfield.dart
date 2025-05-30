@@ -10,7 +10,7 @@ class LsTextField extends StatelessWidget {
       this.hintText,
       this.labelText,
       required this.controller,
-      required this.secure});
+      required this.secure, required String? Function(dynamic value) validator});
 
   @override
   Widget build(BuildContext context) {

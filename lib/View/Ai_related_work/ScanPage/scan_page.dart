@@ -27,7 +27,7 @@ class ScanPage extends StatefulWidget {
   State<ScanPage> createState() => _ScanPageState();
 }
 
-class _ScanPageState extends State<ScanPage> {
+class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin {
   late CameraController _cameraController;
   late List<CameraDescription> cameras;
   XFile? capturedImage;
@@ -36,6 +36,8 @@ class _ScanPageState extends State<ScanPage> {
   bool isFlashEffect = false;
   bool isProcessing = false;
   late GenerativeModel geminiModel;
+  late AnimationController _glowController;
+  late Animation<double> _glowAnimation;
 
   @override
   void initState() {
@@ -43,6 +45,14 @@ class _ScanPageState extends State<ScanPage> {
     geminiModel = GenerativeModel(
       model: 'gemini-1.5-flash',
       apiKey: 'AIzaSyBqmf39zxQnvE3qoAIjGLl3pSyNdkWSs78', // Replace with your actual API key
+    );
+    // Initialize glow animation
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    _glowAnimation = Tween<double>(begin: 10, end: 20).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
     initializeCamera();
   }
@@ -77,6 +87,7 @@ class _ScanPageState extends State<ScanPage> {
 
   @override
   void dispose() {
+    _glowController.dispose();
     _cameraController.dispose();
     super.dispose();
   }
@@ -91,6 +102,13 @@ class _ScanPageState extends State<ScanPage> {
 
     try {
       final XFile image = await _cameraController.takePicture();
+      // Turn off flash after capturing image
+      if (isFlashOn) {
+        await _cameraController.setFlashMode(FlashMode.off);
+        setState(() {
+          isFlashOn = false;
+        });
+      }
       setState(() {
         capturedImage = image;
         isFlashEffect = false;
@@ -119,8 +137,7 @@ class _ScanPageState extends State<ScanPage> {
     try {
       final textRecognizer = GoogleMlKit.vision.textRecognizer();
       final inputImage = InputImage.fromFilePath(imagePath);
-      final RecognizedText recognizedText =
-      await textRecognizer.processImage(inputImage);
+      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
 
       List<Map<String, dynamic>> textWithBounds = [];
       for (TextBlock block in recognizedText.blocks) {
@@ -232,9 +249,27 @@ class _ScanPageState extends State<ScanPage> {
 
   List<String> _fallbackProcessing(List<String> textBlocks) {
     const ignoreKeywords = [
-      "drinks", "beverages", "menu", "deals", "snacks",
-      "appetizers", "desserts", "specials", "combo", "platter", "wraps",
-      "sides", "price", "\$", "€", "£", "₹", "rs", "usd", "euro", "inr",
+      "drinks",
+      "beverages",
+      "menu",
+      "deals",
+      "snacks",
+      "appetizers",
+      "desserts",
+      "specials",
+      "combo",
+      "platter",
+      "wraps",
+      "sides",
+      "price",
+      "\$",
+      "€",
+      "£",
+      "₹",
+      "rs",
+      "usd",
+      "euro",
+      "inr",
     ];
 
     List<String> extractedDishes = [];
@@ -471,8 +506,7 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  Future<void> _processConfirmedDishes(
-      String imagePath, List<String> dishes) async {
+  Future<void> _processConfirmedDishes(String imagePath, List<String> dishes) async {
     setState(() => isProcessing = true);
 
     try {
@@ -631,36 +665,47 @@ class _ScanPageState extends State<ScanPage> {
               child: Center(
                 child: GestureDetector(
                   onTap: captureImage,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 4,
-                      ),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: theme.primaryColorDark,
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.primaryColor.withOpacity(0.4),
-                            blurRadius: 10,
-                            spreadRadius: 3,
+                  child: AnimatedBuilder(
+                    animation: _glowAnimation,
+                    builder: (context, child) {
+                      return Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.4),
+                            width: 4,
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withOpacity(0.5),
+                              blurRadius: _glowAnimation.value,
+                              spreadRadius: _glowAnimation.value / 1,
+                            ),
+                          ],
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.red.shade600,
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.primaryColor.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),

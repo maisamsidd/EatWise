@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:animate_gradient/animate_gradient.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:eat_wise/Controllers/splash_services.dart';
 import 'package:eat_wise/Utils/app_colors.dart';
 import 'package:eat_wise/main.dart';
+import 'dart:ui';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -11,73 +14,216 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   SplashServices splash = SplashServices();
   double opacityLevel = 0.0;
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+  late AnimationController _textSlideController;
+  late Animation<Offset> _titleSlideAnimation;
+  late Animation<Offset> _taglineSlideAnimation;
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
 
   @override
   void initState() {
     super.initState();
     splash.SplashFunction();
 
-    // Start fade-in animation
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // Initialize animations
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack),
+    );
+
+    _textSlideController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _titleSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _textSlideController, curve: Curves.easeOutCubic),
+    );
+    _taglineSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _textSlideController, curve: Curves.easeOutCubic),
+    );
+
+    _progressController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeInOut),
+    );
+
+    // Start animations
+    Future.delayed(const Duration(milliseconds: 300), () {
       setState(() {
         opacityLevel = 1.0;
       });
+      _scaleController.forward();
+      _textSlideController.forward();
+      _progressController.forward();
     });
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    _textSlideController.dispose();
+    _progressController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     mq = MediaQuery.of(context).size;
     return Scaffold(
-      backgroundColor: MyColors.whiteColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
+      body: AnimateGradient(
+        primaryColors: [
+          MyColors.whiteColor ?? Colors.white,
+          const Color(0xFF4D8EDC).withOpacity(0.4),
+        ],
+        secondaryColors: [
+          const Color(0xFF3065D1).withOpacity(0.4),
+          MyColors.whiteColor ?? Colors.white,
+        ],
+        child: Stack(
           children: [
-            Lottie.asset(
-              'assets/animations/Splash.json',
-              height: mq.height * 0.3,
-              fit: BoxFit.cover,
-              repeat: true,
-              errorBuilder: (context, error, stackTrace) => const Text(
-                "Animation not found!",
-                style: TextStyle(color: Colors.red),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Lottie.asset(
+                      'assets/animations/Splash.json',
+                      height: mq.height * 0.3,
+                      fit: BoxFit.cover,
+                      repeat: true,
+                      errorBuilder: (context, error, stackTrace) => Image.asset(
+                        'assets/images/fallback_logo.png',
+                        height: mq.height * 0.3,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Text(
+                          "Image not found!",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: mq.height * 0.02),
+                  AnimatedOpacity(
+                    duration: const Duration(seconds: 2),
+                    opacity: opacityLevel,
+                    child: SlideTransition(
+                      position: _titleSlideAnimation,
+                      child: Text(
+                        "EatWise",
+                        style: GoogleFonts.poppins(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2980B9),
+                          shadows: [
+                            Shadow(
+                              blurRadius: 10,
+                              color: Colors.black.withOpacity(0.2),
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: mq.height * 0.01),
+                  AnimatedOpacity(
+                    duration: const Duration(seconds: 2),
+                    opacity: opacityLevel,
+                    child: SlideTransition(
+                      position: _taglineSlideAnimation,
+                      child: Text(
+                        "Your personal nutrition guide",
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: mq.height * 0.03),
+                  AnimatedBuilder(
+                    animation: _progressController,
+                    builder: (context, child) {
+                      return Container(
+                        width: mq.width * 0.6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: _progressAnimation.value,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
+                              ),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-
-            // Animated Fade-in Text
-            AnimatedOpacity(
-              duration: const Duration(seconds: 3),
-              opacity: opacityLevel,
-              child: const Text(
-                "EatWise",
-                style: TextStyle(fontSize: 45, fontWeight: FontWeight.bold),
+            Positioned(
+              bottom: mq.height * 0.03,
+              left: 0,
+              right: 0,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Text(
+                      "@2025 EatWise, All rights reserved",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            // SizedBox(height: mq.height * 0.01),
-
-            AnimatedOpacity(
-              duration: const Duration(seconds: 3),
-              opacity: opacityLevel,
-              child: const Text(
-                "Your personal nutrition guide",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            SizedBox(height: mq.height * 0.03),
-
-            // const CircularProgressIndicator(),
-            // SizedBox(height: mq.height * 0.03),
-            //
-            // const Text(
-            //   "@2025 Eat Wise, All rights reserved",
-            //   style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            // ),
           ],
         ),
       ),

@@ -4,12 +4,19 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:ui';
 import 'package:animate_gradient/animate_gradient.dart';
+import 'package:get/get.dart';
+import 'package:eat_wise/Controllers/theme_controller.dart';
+import 'package:eat_wise/View/HomePage/userProfile.dart';
+import 'package:lottie/lottie.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:eat_wise/Utils/Apis_utils.dart';
 
 class Output extends StatefulWidget {
   final String userId;
   final String profileId;
   final Map<String, bool> healthConditions;
   final List<String> dishes;
+  final List<dynamic>? savedAnalyses;
 
   const Output({
     super.key,
@@ -17,6 +24,7 @@ class Output extends StatefulWidget {
     required this.profileId,
     required this.healthConditions,
     required this.dishes,
+    this.savedAnalyses,
   });
 
   @override
@@ -36,17 +44,27 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
   late AnimationController _fabController;
   late Animation<double> _fabAnimation;
 
-  // Color Palette
   final Color _primaryColor = const Color(0xFF1976D2);
   final Color _successColor = const Color(0xFF4CAF50);
   final Color _warningColor = const Color(0xFFFFC107);
   final Color _dangerColor = const Color(0xFFF44336);
   final Color _cardBackground = const Color(0xFFFAFAFA);
 
+  final ThemeController themeController = Get.find<ThemeController>();
+
   @override
   void initState() {
     super.initState();
-    _fetchRecommendations();
+    if (widget.savedAnalyses != null) {
+      setState(() {
+        _analyses = widget.savedAnalyses!;
+        _filteredAnalyses = List.from(_analyses);
+        _isLoading = false;
+      });
+      _sortAnalyses();
+    } else {
+      _fetchRecommendations();
+    }
     _searchController.addListener(_filterAnalyses);
     _fabController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -64,6 +82,25 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _saveToFirestore(List<dynamic> analyses) async {
+    try {
+      final scanData = {
+        'userId': widget.userId,
+        'profileId': widget.profileId,
+        'dishes': widget.dishes,
+        'analyses': analyses,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      await ApisUtils.users
+          .doc(widget.userId)
+          .collection('scans')
+          .add(scanData);
+    } catch (e) {
+      print('Error saving to Firestore: $e');
+    }
+  }
+
   Future<void> _fetchRecommendations() async {
     setState(() {
       _isLoading = true;
@@ -72,7 +109,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
 
     try {
       final response = await http.post(
-        Uri.parse("https://a423-34-143-164-249.ngrok-free.app/ids"),
+        Uri.parse("https://c3ec-34-82-46-113.ngrok-free.app/ids"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "user_id": widget.userId,
@@ -90,6 +127,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
         });
         _sortAnalyses();
         _filterAnalyses();
+        await _saveToFirestore(_analyses);
       } else {
         throw Exception(responseData['message'] ?? 'Failed to load recommendations');
       }
@@ -167,7 +205,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
   Widget _buildAnalysisCard(Map<String, dynamic> analysis) {
     final cardColor = _getCardColor(analysis['recommendation']);
     final borderColor = _getBorderColor(analysis['recommendation']);
-    final textColor = Colors.grey.shade800;
+    final textColor = themeController.isDarkMode.value ? Colors.grey.shade200 : Colors.grey.shade800;
     final isExpanded = _expandedCards[analysis['dish']] ?? false;
 
     return AnimatedContainer(
@@ -179,7 +217,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
         border: Border.all(color: borderColor.withOpacity(0.5), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(themeController.isDarkMode.value ? 0.3 : 0.1),
             blurRadius: 8,
             spreadRadius: 1,
           ),
@@ -285,7 +323,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(themeController.isDarkMode.value ? 0.3 : 0.1),
             blurRadius: 8,
             spreadRadius: 1,
           ),
@@ -301,8 +339,14 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
               children: [
                 TextField(
                   controller: _searchController,
+                  style: TextStyle(
+                    color: themeController.isDarkMode.value ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search dishes (e.g., biryani, veg, chicken)',
+                    hintStyle: TextStyle(
+                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[600],
+                    ),
                     prefixIcon: Icon(Icons.search, color: _primaryColor),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
@@ -315,7 +359,6 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
                       vertical: 16,
                     ),
                   ),
-                  style: const TextStyle(color: Colors.black87),
                   onChanged: (value) {
                     _filterAnalyses();
                   },
@@ -348,7 +391,14 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
       scale: _searchQuery == label.toLowerCase() ? 1.1 : 1.0,
       duration: const Duration(milliseconds: 200),
       child: FilterChip(
-        label: Text(label),
+        label: Text(
+          label,
+          style: TextStyle(
+            color: _searchQuery == label.toLowerCase()
+                ? _primaryColor
+                : (themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[700]),
+          ),
+        ),
         selected: _searchQuery == label.toLowerCase(),
         onSelected: (bool selected) {
           setState(() {
@@ -356,19 +406,14 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
             _filterAnalyses();
           });
         },
-        backgroundColor: Colors.white.withOpacity(0.2),
+        backgroundColor: themeController.isDarkMode.value ? Colors.grey[800] : Colors.white.withOpacity(0.2),
         selectedColor: _primaryColor.withOpacity(0.4),
         checkmarkColor: _primaryColor,
-        labelStyle: TextStyle(
-          color: _searchQuery == label.toLowerCase()
-              ? _primaryColor
-              : Colors.grey.shade700,
-        ),
         shape: StadiumBorder(
           side: BorderSide(
             color: _searchQuery == label.toLowerCase()
                 ? _primaryColor
-                : Colors.grey.shade300,
+                : (themeController.isDarkMode.value ? Colors.grey[600]! : Colors.grey[300]!),
           ),
         ),
       ),
@@ -387,7 +432,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.grey[800],
             ),
           ),
         ),
@@ -395,6 +440,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
           child: RefreshIndicator(
             onRefresh: _fetchRecommendations,
             color: _primaryColor,
+            backgroundColor: themeController.isDarkMode.value ? Colors.grey[800] : Colors.white,
             child: _filteredAnalyses.isEmpty
                 ? Center(
               child: Text(
@@ -402,7 +448,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
                     ? 'No dishes available'
                     : 'No dishes found for "$_searchQuery"',
                 style: TextStyle(
-                  color: Colors.grey.shade600,
+                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[600],
                   fontSize: 16,
                 ),
               ),
@@ -425,11 +471,19 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+          Lottie.asset(
+            'assets/animations/load.json',
+            width: 100,
+            height: 100,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 20),
-          const Text('Analyzing your dishes...'),
+          Text(
+            'Analyzing your dishes...',
+            style: TextStyle(
+              color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[800],
+            ),
+          ),
         ],
       ),
     );
@@ -452,7 +506,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
               _errorMessage,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.grey.shade700,
+                color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[700],
                 fontSize: 16,
               ),
             ),
@@ -463,8 +517,6 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
             label: const Text('Try Again'),
             onPressed: _fetchRecommendations,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
-              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
@@ -475,46 +527,55 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Obx(() => Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Recommendation',
           style: TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 20,
+            color: Colors.white,
           ),
         ),
         backgroundColor: _primaryColor,
-        foregroundColor: Colors.white,
         elevation: 4,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: Colors.white,
           onPressed: () {
-            Navigator.pushReplacementNamed(context, '/home');
+            Get.back();
           },
           tooltip: 'Back to Home',
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            color: Colors.white,
+            onPressed: () {
+              Get.to(() => const SettingsPage());
+            },
+            tooltip: 'Go to Profile',
+          ),
         ],
       ),
-      body: AnimateGradient(
+      body: _isLoading
+          ? AnimateGradient(
         primaryColors: [
-          _cardBackground,
+          themeController.isDarkMode.value ? Colors.grey[900]! : _cardBackground,
           _primaryColor.withOpacity(0.4),
         ],
         secondaryColors: [
           _primaryColor.withOpacity(0.4),
-          _cardBackground,
+          themeController.isDarkMode.value ? Colors.grey[900]! : _cardBackground,
         ],
-        child: _isLoading
-            ? _buildLoadingIndicator()
-            : _hasError
-            ? _buildErrorState()
-            : _buildContent(),
+        child: _buildLoadingIndicator(),
+      )
+          : Container(
+        color: themeController.isDarkMode.value ? Colors.grey[900] : _cardBackground,
+        child: _hasError ? _buildErrorState() : _buildContent(),
       ),
-      floatingActionButton: ScaleTransition(
+      floatingActionButton: widget.savedAnalyses == null
+          ? ScaleTransition(
         scale: _fabAnimation,
         child: FloatingActionButton(
           onPressed: () {
@@ -525,7 +586,8 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
           child: const Icon(Icons.refresh, color: Colors.white),
           tooltip: 'Refresh',
         ),
-      ),
-    );
+      )
+          : null,
+    ));
   }
 }

@@ -59,12 +59,14 @@ dependencies:
   intl: ^0.18.0
 
 
+
 dev_dependencies:
-  flutter_launcher_icons: ^0.14.0
-flutter icon:
-  android: true,
-  ios: true,
-  image path: 'assets/animations/image-removebg-preview.png'
+  flutter_launcher_icons: ^0.13.0
+flutter_launcher_icons:
+  android: true # or true for default name
+  ios: true
+  image_path: "assets/animations/EatwiseLogo.png" # Path to your logo
+
 
 
   flutter_test:
@@ -84,10 +86,10 @@ flutter icon:
 flutter:
   assets:
     - 'assets\animations\Splash.json'
-    - 'assets\animations\Home.json'
     - 'assets\animations\chat-bot_icon.png'
-    - 'assets\animations\image-removebg-preview.png'
     - 'assets\animations\load.json'
+    - 'assets/animations/EatwiseLogo-removebg-preview.png'
+    - 'assets/animations/background.png'
     - .env
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

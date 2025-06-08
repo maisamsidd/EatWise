@@ -117,21 +117,21 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   SizedBox(height: mq.height * 0.03),
                   // App Logo
-                  Icon(
-                    Icons.restaurant_menu_rounded,
-                    size: 70,
-                    color: Colors.white,
+                  Image.asset(
+                    'assets/animations/EatwiseLogo-removebg-preview.png',
+                    height: 150,
+                    width: 150,
                   ),
-                  SizedBox(height: mq.height * 0.015),
-                  Text(
-                    "EatWise",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
+                  // SizedBox(height: mq.height * 0.015),
+                  // Text(
+                  //   "EatWise",
+                  //   style: TextStyle(
+                  //     fontSize: 32,
+                  //     fontWeight: FontWeight.w600,
+                  //     color: Colors.white,
+                  //     letterSpacing: 1.5,
+                  //   ),
+                  // ),
                   Text(
                     "Log In to Your Account",
                     style: TextStyle(

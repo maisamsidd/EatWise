@@ -331,7 +331,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                     height: displayHeight * 1.0,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
@@ -385,16 +385,40 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                                               TextEditingController editController =
                                               TextEditingController(text: dishes[index]);
                                               return AlertDialog(
-                                                title: const Text("Edit Dish"),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                backgroundColor: Colors.white,
+                                                title: Text(
+                                                  "Edit Dish Name",
+                                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
                                                 content: TextField(
                                                   controller: editController,
-                                                  decoration: const InputDecoration(
+                                                  decoration: InputDecoration(
                                                     hintText: "Enter dish name",
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: Colors.grey[300]!),
+                                                    ),
+                                                    focusedBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: Colors.blue[600]!, width: 2),
+                                                    ),
+                                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                                   ),
+                                                  style: const TextStyle(fontSize: 16),
                                                 ),
                                                 actions: [
                                                   TextButton(
                                                     onPressed: () => Navigator.pop(context),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor: Colors.grey[600],
+                                                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                                                    ),
                                                     child: const Text("Cancel"),
                                                   ),
                                                   TextButton(
@@ -405,6 +429,15 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                                                       });
                                                       Navigator.pop(context);
                                                     },
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor: Colors.blue[600],
+                                                      backgroundColor: Colors.blue[50],
+                                                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      ),
+                                                    ),
                                                     child: const Text("Save"),
                                                   ),
                                                 ],
@@ -589,11 +622,11 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.blue.shade700!.withOpacity(0.3),
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 10),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 24, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -621,42 +654,69 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 color: Colors.white,
               ),
             ),
-
           Positioned(
             top: mq.height * 0.15,
             left: mq.width * 0.1,
             child: Container(
               width: mq.width * 0.8,
               height: mq.height * 0.6,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.lightBlueAccent.withOpacity(0.8),
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
+              child: Stack(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20),
+                  // Semi-transparent overlay for outside the guide
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.5), // Dim area outside guide
                     ),
-                    child: Text(
-                      "Align menu within this frame",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
+                  ),
+                  // Transparent inner guide area
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    width: mq.width * 0.8,
+                    height: mq.height * 0.6,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        color: Colors.transparent, // Ensure no tint inside
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  // Corner markers
+                  _buildCornerMarker(0, 0, Alignment.topLeft),
+                  _buildCornerMarker(mq.width * 0.8, 0, Alignment.topRight),
+                  _buildCornerMarker(0, mq.height * 0.6, Alignment.bottomLeft),
+                  _buildCornerMarker(mq.width * 0.8, mq.height * 0.6, Alignment.bottomRight),
+                  // Instruction text
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        "Align menu within this frame",
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-
           if (!isProcessing)
             Positioned(
               bottom: mq.height * 0.05,
@@ -679,7 +739,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.red.withOpacity(0.5),
+                              color: Colors.blue.shade700.withOpacity(0.5),
                               blurRadius: _glowAnimation.value,
                               spreadRadius: _glowAnimation.value / 1,
                             ),
@@ -689,10 +749,10 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                           margin: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.red.shade600,
+                            color: Colors.blue.shade700,
                             boxShadow: [
                               BoxShadow(
-                                color: theme.primaryColor.withOpacity(0.4),
+                                color: Colors.blue.shade700.withOpacity(0.4),
                                 blurRadius: 10,
                                 spreadRadius: 3,
                               ),
@@ -710,7 +770,6 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-
           if (isProcessing)
             Container(
               color: Colors.black.withOpacity(0.6),
@@ -741,7 +800,6 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 ),
               ),
             ),
-
           if (isFlashEffect)
             Container(
               color: Colors.white.withOpacity(0.7),
@@ -749,6 +807,51 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
               height: double.infinity,
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCornerMarker(double x, double y, Alignment alignment) {
+    const double size = 24;
+    return Positioned(
+      left: alignment == Alignment.topRight || alignment == Alignment.bottomRight ? x - size : x,
+      top: alignment == Alignment.bottomLeft || alignment == Alignment.bottomRight ? y - size : y,
+      child: AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              border: alignment == Alignment.topLeft
+                  ? Border(
+                top: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+                left: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+              )
+                  : alignment == Alignment.topRight
+                  ? Border(
+                top: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+                right: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+              )
+                  : alignment == Alignment.bottomLeft
+                  ? Border(
+                bottom: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+                left: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+              )
+                  : Border(
+                bottom: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+                right: BorderSide(color: Colors.blueAccent.withOpacity(0.9), width: 3),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blueAccent.withOpacity(0.4),
+                  blurRadius: _glowAnimation.value / 2,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

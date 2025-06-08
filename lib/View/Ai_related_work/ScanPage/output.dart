@@ -73,6 +73,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
     _fabAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _fabController, curve: Curves.easeInOut),
     );
+    _showHintDialog();
   }
 
   @override
@@ -80,6 +81,55 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
     _searchController.dispose();
     _fabController.dispose();
     super.dispose();
+  }
+
+  void _showHintDialog() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          Future.delayed(const Duration(seconds: 4), () {
+            if (mounted && Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          });
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: themeController.isDarkMode.value
+                ? Colors.grey[900]!.withOpacity(0.9)
+                : Colors.white.withOpacity(0.9),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Recommendation Guide',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Green: Safe\nYellow: Moderate\nRed: Caution',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
   }
 
   Future<void> _saveToFirestore(List<dynamic> analyses) async {
@@ -109,7 +159,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
 
     try {
       final response = await http.post(
-        Uri.parse("https://c3ec-34-82-46-113.ngrok-free.app/ids"),
+        Uri.parse("https://486f-35-185-64-116.ngrok-free.app/ids"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "user_id": widget.userId,

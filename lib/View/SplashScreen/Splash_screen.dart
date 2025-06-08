@@ -3,8 +3,8 @@ import 'package:lottie/lottie.dart';
 import 'package:animate_gradient/animate_gradient.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:eat_wise/Controllers/splash_services.dart';
-import 'package:eat_wise/Utils/app_colors.dart';
-import 'package:eat_wise/main.dart';
+import 'package:eat_wise/Controllers/theme_controller.dart';
+import 'package:get/get.dart';
 import 'dart:ui';
 
 class SplashScreen extends StatefulWidget {
@@ -24,6 +24,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<Offset> _taglineSlideAnimation;
   late AnimationController _progressController;
   late Animation<double> _progressAnimation;
+  final ThemeController themeController = Get.find<ThemeController>(); // Access ThemeController
 
   @override
   void initState() {
@@ -85,16 +86,26 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    mq = MediaQuery.of(context).size;
-    return Scaffold(
+    final mq = MediaQuery.of(context).size;
+
+    // Wrap the Scaffold with Obx to react to theme changes
+    return Obx(() => Scaffold(
       body: AnimateGradient(
         primaryColors: [
-          MyColors.whiteColor ?? Colors.white,
-          const Color(0xFF4D8EDC).withOpacity(0.4),
+          themeController.isDarkMode.value
+              ? Colors.blue.shade900.withOpacity(0.7) // Match HomePage dark mode gradient
+              : Colors.blue.shade400.withOpacity(0.8), // Match HomePage light mode gradient
+          themeController.isDarkMode.value
+              ? Colors.grey[900]!.withOpacity(0.8) // Match HomePage dark mode background
+              : Colors.white.withOpacity(0.9), // Match HomePage light mode background
         ],
         secondaryColors: [
-          const Color(0xFF3065D1).withOpacity(0.4),
-          MyColors.whiteColor ?? Colors.white,
+          themeController.isDarkMode.value
+              ? Colors.blue.shade700.withOpacity(0.7) // Consistent with HomePage AppBar
+              : Colors.blue.shade200.withOpacity(0.8), // Lighter blue for light mode
+          themeController.isDarkMode.value
+              ? Colors.grey[900]!.withOpacity(0.8)
+              : Colors.white.withOpacity(0.9),
         ],
         child: Stack(
           children: [
@@ -106,7 +117,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   ScaleTransition(
                     scale: _scaleAnimation,
                     child: Lottie.asset(
-                      'assets/animations/Splash.json',
+                      themeController.isDarkMode.value
+                          ? 'assets/animations/Splash.json'
+                          : 'assets/animations/Splash.json',
                       height: mq.height * 0.3,
                       fit: BoxFit.cover,
                       repeat: true,
@@ -114,9 +127,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         'assets/images/fallback_logo.png',
                         height: mq.height * 0.3,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Text(
+                        errorBuilder: (context, error, stackTrace) => Text(
                           "Image not found!",
-                          style: TextStyle(color: Colors.red),
+                          style: TextStyle(
+                            color: themeController.isDarkMode.value
+                                ? Colors.red[400]
+                                : Colors.red,
+                          ),
                         ),
                       ),
                     ),
@@ -132,11 +149,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         style: GoogleFonts.poppins(
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF2980B9),
+                          color: themeController.isDarkMode.value
+                              ? Colors.blue.shade200 // Dark mode text
+                              : Colors.blue.shade700, // Light mode text
                           shadows: [
                             Shadow(
                               blurRadius: 10,
-                              color: Colors.black.withOpacity(0.2),
+                              color: themeController.isDarkMode.value
+                                  ? Colors.black.withOpacity(0.2)
+                                  : Colors.grey.withOpacity(0.2),
                               offset: const Offset(0, 4),
                             ),
                           ],
@@ -155,7 +176,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade700,
+                          color: themeController.isDarkMode.value
+                              ? Colors.grey[400]!.withOpacity(0.7)
+                              : Colors.grey[600]!.withOpacity(0.7),
                         ),
                       ),
                     ),
@@ -168,7 +191,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         width: mq.width * 0.6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
+                          color: themeController.isDarkMode.value
+                              ? Colors.grey[800]!.withOpacity(0.2)
+                              : Colors.grey[300]!.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(3),
                         ),
                         child: FractionallySizedBox(
@@ -176,8 +201,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           widthFactor: _progressAnimation.value,
                           child: Container(
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
+                              gradient: LinearGradient(
+                                colors: [
+                                  themeController.isDarkMode.value
+                                      ? const Color(0xFF6DD5FA).withOpacity(0.8)
+                                      : const Color(0xFF6DD5FA),
+                                  themeController.isDarkMode.value
+                                      ? const Color(0xFF2980B9).withOpacity(0.8)
+                                      : const Color(0xFF2980B9),
+                                ],
                               ),
                               borderRadius: BorderRadius.circular(3),
                             ),
@@ -197,11 +229,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: themeController.isDarkMode.value
+                      ? Colors.grey[850]!.withOpacity(0.3)
+                      : Colors.white.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: themeController.isDarkMode.value
+                          ? Colors.black.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -217,7 +253,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade700,
+                        color: themeController.isDarkMode.value
+                            ? Colors.grey[400]!.withOpacity(0.7)
+                            : Colors.grey[600]!.withOpacity(0.7),
                       ),
                     ),
                   ),
@@ -227,6 +265,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           ],
         ),
       ),
-    );
+    ));
   }
 }

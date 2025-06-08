@@ -43,7 +43,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Future<void> sendMessage(String userInput) async {
     const topicInstruction =
         "You are a helpful assistant who only talks briefly about Dish guidance according to health conditions, "
-        "main ingredients categorization (Green, Yellow, Red for safe, moderate, caution respectively). "
+        "Analyze main ingredientsof dishes and guide user if its safe, moderate, caution. "
         "If not related to dishes, health or nutrition, reply 'I'm only trained to talk about fitness and nutrition.'";
 
     final fullPrompt = "$topicInstruction\n\nUser: $userInput";

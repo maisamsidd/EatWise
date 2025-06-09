@@ -20,7 +20,8 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -28,13 +29,14 @@ class _SignupPageState extends State<SignupPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Email validation regex
-  bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    return emailRegex.hasMatch(email);
-  }
+  // bool _isValidEmail(String email) {
+  //   final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+  //   return emailRegex.hasMatch(email);
+  // }
 
   // Save user data to Firestore
-  Future<void> _saveUserToFirestore(String uid, {String? email, bool isGuest = false}) async {
+  Future<void> _saveUserToFirestore(String uid,
+      {String? email, bool isGuest = false}) async {
     await _firestore.collection('users').doc(uid).set({
       'email': email ?? 'guest_${uid}@eatwise.com',
       'isGuest': isGuest,
@@ -70,13 +72,15 @@ class _SignupPageState extends State<SignupPage> {
 
     setState(() => _isLoading = true);
     try {
-      final userCredential = await ApisUtils.auth.createUserWithEmailAndPassword(
+      final userCredential =
+          await ApisUtils.auth.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
       final user = userCredential.user;
       if (user != null) {
-        await _saveUserToFirestore(user.uid, email: emailController.text.trim());
+        await _saveUserToFirestore(user.uid,
+            email: emailController.text.trim());
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -157,16 +161,16 @@ class _SignupPageState extends State<SignupPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         LsTextField(
-                          hintText: "email@example.com",
-                          labelText: "Email",
+                          hintText: "john123",
+                          labelText: "username",
                           controller: emailController,
                           secure: false,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return "Please enter your email";
+                              return "Please enter your username";
                             }
-                            if (!_isValidEmail(value)) {
-                              return "Please enter a valid email";
+                            if (value.length < 6) {
+                              return "Please enter a valid username";
                             }
                             return null;
                           },
@@ -204,12 +208,13 @@ class _SignupPageState extends State<SignupPage> {
                         SizedBox(height: mq.height * 0.035),
                         _isLoading
                             ? const CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                        )
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.blue),
+                              )
                             : LsButton(
-                          text: "Sign Up",
-                          ontap: _handleEmailSignup,
-                        ),
+                                text: "Sign Up",
+                                ontap: _handleEmailSignup,
+                              ),
                         SizedBox(height: mq.height * 0.02),
                         TextButton(
                           onPressed: () {

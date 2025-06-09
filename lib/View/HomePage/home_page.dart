@@ -103,14 +103,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void _checkSwipeHintStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final hasSeenSwipeHint = prefs.getBool('hasSeenSwipeHint') ?? false;
-    final isFirstLogin = prefs.getBool('isFirstLogin') ?? true; // Default to true for first login
+    final isFirstLogin = prefs.getBool('isFirstLogin') ??
+        true; // Default to true for first login
 
     if (isFirstLogin && !hasSeenSwipeHint && mounted) {
       final snapshot = await ApisUtils.users
           .doc(ApisUtils.auth.currentUser?.uid)
           .collection("profiles")
           .get();
-      if (snapshot.docs.isNotEmpty) { // Only show if there are profiles
+      if (snapshot.docs.isNotEmpty) {
+        // Only show if there are profiles
         setState(() {
           _isFirstLogin = true;
           _showSwipeHint = true;
@@ -142,7 +144,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           backgroundColor: themeController.isDarkMode.value
               ? Colors.grey[900]
               : Colors.white.withOpacity(0.95),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             "Welcome to EatWise!",
             style: TextStyle(
@@ -182,9 +185,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Navigator.pop(context);
                 _addUser();
               },
-              child: const Text("Add Profile", style: TextStyle(color: Colors.white)),
+              child: const Text("Add Profile",
+                  style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -220,7 +225,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           backgroundColor: themeController.isDarkMode.value
               ? Colors.grey[900]
               : Colors.white.withOpacity(0.95),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           content: StatefulBuilder(
             builder: (context, setState) {
               return SingleChildScrollView(
@@ -270,8 +276,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -307,8 +313,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -318,8 +324,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: themeController.isDarkMode.value
-                      ? Colors.grey[200]
-                        : Colors.black87,
+                            ? Colors.grey[200]
+                            : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -353,7 +359,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       value: hypertension,
-                      onChanged: (value) => setState(() => hypertension = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => hypertension = value ?? false),
                       contentPadding: EdgeInsets.zero,
                       activeColor: Colors.blue.shade700,
                       checkColor: Colors.white,
@@ -378,7 +385,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       value: diabetes,
-                      onChanged: (value) => setState(() => diabetes = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => diabetes = value ?? false),
                       contentPadding: EdgeInsets.zero,
                       activeColor: Colors.blue.shade700,
                       checkColor: Colors.white,
@@ -403,7 +411,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       value: obesity,
-                      onChanged: (value) => setState(() => obesity = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => obesity = value ?? false),
                       contentPadding: EdgeInsets.zero,
                       activeColor: Colors.blue.shade700,
                       checkColor: Colors.white,
@@ -428,7 +437,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       value: highCholesterol,
-                      onChanged: (value) => setState(() => highCholesterol = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => highCholesterol = value ?? false),
                       contentPadding: EdgeInsets.zero,
                       activeColor: Colors.blue.shade700,
                       checkColor: Colors.white,
@@ -444,13 +454,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Text(
                 "Cancel",
                 style: TextStyle(
-                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                  color: themeController.isDarkMode.value
+                      ? Colors.grey[400]
+                      : Colors.grey,
                 ),
               ),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isNotEmpty && ageController.text.isNotEmpty) {
+                if (nameController.text.isNotEmpty &&
+                    ageController.text.isNotEmpty) {
                   await ApisUtils.users
                       .doc(ApisUtils.auth.currentUser!.uid)
                       .collection("profiles")
@@ -470,13 +483,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Navigator.pop(context);
                     // Ensure swipe hint is not shown after adding a new profile
                     final prefs = await SharedPreferences.getInstance();
-                    final hasSeenSwipeHint = prefs.getBool('hasSeenSwipeHint') ?? false;
+                    final hasSeenSwipeHint =
+                        prefs.getBool('hasSeenSwipeHint') ?? false;
                     if (!hasSeenSwipeHint) {
                       final snapshot = await ApisUtils.users
                           .doc(ApisUtils.auth.currentUser?.uid)
                           .collection("profiles")
                           .get();
-                      if (snapshot.docs.length == 1) { // Only for the first profile
+                      if (snapshot.docs.length == 1) {
+                        // Only for the first profile
                         setState(() {
                           _showSwipeHint = true;
                         });
@@ -487,7 +502,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               },
               child: const Text("Add", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -504,17 +520,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           backgroundColor: themeController.isDarkMode.value
               ? Colors.grey[900]
               : Colors.white.withOpacity(0.95),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             "Delete Profile",
             style: TextStyle(
-              color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+              color: themeController.isDarkMode.value
+                  ? Colors.grey[200]
+                  : Colors.black87,
             ),
           ),
           content: Text(
             "Are you sure you want to delete this profile?",
             style: TextStyle(
-              color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black87,
+              color: themeController.isDarkMode.value
+                  ? Colors.grey[400]
+                  : Colors.black87,
             ),
           ),
           actions: [
@@ -523,7 +544,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Text(
                 "Cancel",
                 style: TextStyle(
-                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                  color: themeController.isDarkMode.value
+                      ? Colors.grey[400]
+                      : Colors.grey,
                 ),
               ),
             ),
@@ -536,10 +559,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     .delete();
                 if (mounted) Navigator.pop(context);
               },
-              child: const Text("Delete", style: TextStyle(color: Colors.white)),
+              child:
+                  const Text("Delete", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -556,17 +581,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           backgroundColor: themeController.isDarkMode.value
               ? Colors.grey[900]
               : Colors.white.withOpacity(0.95),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             "Delete Scan",
             style: TextStyle(
-              color: themeController.isDarkMode.value ? Colors.grey[200] : Colors.black87,
+              color: themeController.isDarkMode.value
+                  ? Colors.grey[200]
+                  : Colors.black87,
             ),
           ),
           content: Text(
             "Are you sure you want to delete this scan?",
             style: TextStyle(
-              color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.black87,
+              color: themeController.isDarkMode.value
+                  ? Colors.grey[400]
+                  : Colors.black87,
             ),
           ),
           actions: [
@@ -575,7 +605,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Text(
                 "Cancel",
                 style: TextStyle(
-                  color: themeController.isDarkMode.value ? Colors.grey[400] : Colors.grey,
+                  color: themeController.isDarkMode.value
+                      ? Colors.grey[400]
+                      : Colors.grey,
                 ),
               ),
             ),
@@ -588,10 +620,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     .delete();
                 if (mounted) Navigator.pop(context);
               },
-              child: const Text("Delete", style: TextStyle(color: Colors.white)),
+              child:
+                  const Text("Delete", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -628,7 +662,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      shadows: const [Shadow(color: Colors.redAccent, blurRadius: 5)],
+                      shadows: const [
+                        Shadow(color: Colors.redAccent, blurRadius: 5)
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -638,7 +674,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      shadows: const [Shadow(color: Colors.green, blurRadius: 5)],
+                      shadows: const [
+                        Shadow(color: Colors.green, blurRadius: 5)
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -689,7 +727,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 .snapshots(),
             builder: (context, AsyncSnapshot<QuerySnapshot> scanSnapshot) {
               if (scanSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Colors.blue));
+                return const Center(
+                    child: CircularProgressIndicator(color: Colors.blue));
               }
               if (scanSnapshot.hasError ||
                   !scanSnapshot.hasData ||
@@ -731,7 +770,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 itemBuilder: (context, index) {
                   final scan = scans[index];
                   final scanData = scan.data() as Map<String, dynamic>;
-                  final timestamp = (scanData['timestamp'] as Timestamp?)?.toDate();
+                  final timestamp =
+                      (scanData['timestamp'] as Timestamp?)?.toDate();
                   final formattedDate = timestamp != null
                       ? DateFormat('MMM dd, yyyy HH:mm').format(timestamp)
                       : 'Unknown date';
@@ -745,13 +785,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         .collection('profiles')
                         .doc(profileId)
                         .snapshots(),
-                    builder: (context, AsyncSnapshot<DocumentSnapshot> profileSnapshot) {
-                      if (!profileSnapshot.hasData) return const SizedBox.shrink();
-                      final profileData =
-                          profileSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                    builder: (context,
+                        AsyncSnapshot<DocumentSnapshot> profileSnapshot) {
+                      if (!profileSnapshot.hasData)
+                        return const SizedBox.shrink();
+                      final profileData = profileSnapshot.data!.data()
+                              as Map<String, dynamic>? ??
+                          {};
                       final profileName = profileData['name'] ?? 'Unknown';
-                      final healthConditions =
-                          profileData['healthConditions'] as Map<String, dynamic>? ?? {};
+                      final healthConditions = profileData['healthConditions']
+                              as Map<String, dynamic>? ??
+                          {};
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -761,7 +805,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             motion: const StretchMotion(),
                             children: [
                               SlidableAction(
-                                onPressed: (context) => _confirmDeleteScan(scan.id),
+                                onPressed: (context) =>
+                                    _confirmDeleteScan(scan.id),
                                 icon: Icons.delete_forever,
                                 foregroundColor: Colors.white,
                                 backgroundColor: Colors.red,
@@ -772,19 +817,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           child: GestureDetector(
                             onTap: () {
                               Get.to(() => Output(
-                                userId: ApisUtils.auth.currentUser!.uid,
-                                profileId: profileId,
-                                dishes: dishes,
-                                healthConditions: {
-                                  'Diabetes': healthConditions['Diabetes'] ?? false,
-                                  'Hypertension':
-                                  healthConditions['Hypertension'] ?? false,
-                                  'Obesity': healthConditions['Obesity'] ?? false,
-                                  'HighCholesterol':
-                                  healthConditions['HighCholesterol'] ?? false,
-                                },
-                                savedAnalyses: analyses,
-                              ));
+                                    userId: ApisUtils.auth.currentUser!.uid,
+                                    profileId: profileId,
+                                    dishes: dishes,
+                                    healthConditions: {
+                                      'Diabetes':
+                                          healthConditions['Diabetes'] ?? false,
+                                      'Hypertension':
+                                          healthConditions['Hypertension'] ??
+                                              false,
+                                      'Obesity':
+                                          healthConditions['Obesity'] ?? false,
+                                      'HighCholesterol':
+                                          healthConditions['HighCholesterol'] ??
+                                              false,
+                                    },
+                                    // savedAnalyses: analyses,
+                                  ));
                             },
                             child: Container(
                               padding: const EdgeInsets.all(12),
@@ -796,7 +845,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(
-                                        themeController.isDarkMode.value ? 0.2 : 0.1),
+                                        themeController.isDarkMode.value
+                                            ? 0.2
+                                            : 0.1),
                                     blurRadius: 4,
                                     spreadRadius: 1,
                                   ),
@@ -851,558 +902,580 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Obx(() => Container(
-      decoration: BoxDecoration(
-        image: const DecorationImage(
-          image: AssetImage('assets/animations/background.png'),
-          fit: BoxFit.cover,
-          opacity: 0.2,
-        ),
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue.shade400.withOpacity(0.8),
-            themeController.isDarkMode.value
-                ? Colors.blue.shade900.withOpacity(0.7)
-                : Colors.white.withOpacity(0.9),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.only(left: 16.0),
-                child: Image.asset(
-                  'assets/animations/EatwiseLogo-removebg-preview.png',
-                  height: 100,
-                  width: 100,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ],
+          decoration: BoxDecoration(
+            image: const DecorationImage(
+              image: AssetImage('assets/animations/background.png'),
+              fit: BoxFit.cover,
+              opacity: 0.2,
+            ),
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.shade400.withOpacity(0.8),
+                themeController.isDarkMode.value
+                    ? Colors.blue.shade900.withOpacity(0.7)
+                    : Colors.white.withOpacity(0.9),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
           ),
-          backgroundColor: Colors.blue.shade700,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(50)),
-          ),
-          toolbarHeight: 100,
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  "My Profiles",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: themeController.isDarkMode.value
-                        ? Colors.blue.shade300
-                        : Colors.blue.shade900,
-                    fontFamily: 'PlayfairDisplay',
-                    shadows: const [Shadow(color: Colors.blueAccent, blurRadius: 5)],
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.only(left: 16.0),
+                    child: Image.asset(
+                      'assets/animations/EatwiseLogo-removebg-preview.png',
+                      height: 100,
+                      width: 100,
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
+                ],
               ),
-              StreamBuilder<QuerySnapshot>(
-                stream: ApisUtils.users
-                    .doc(ApisUtils.auth.currentUser!.uid)
-                    .collection("profiles")
-                    .snapshots(),
-                builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                        child: CircularProgressIndicator(color: Colors.blue));
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        "Error fetching data",
-                        style: TextStyle(
-                          color: themeController.isDarkMode.value
-                              ? Colors.red[300]
-                              : Colors.red,
-                        ),
-                      ),
-                    );
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "No profiles yet. Add a profile!",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: themeController.isDarkMode.value
-                                  ? Colors.grey[400]
-                                  : Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Tap the + button below to get started",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: themeController.isDarkMode.value
-                                  ? Colors.grey[400]
-                                  : Colors.white70,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
+              backgroundColor: Colors.blue.shade700,
+              shape: const RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(50)),
+              ),
+              toolbarHeight: 100,
+            ),
+            body: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "My Profiles",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: themeController.isDarkMode.value
+                            ? Colors.blue.shade300
+                            : Colors.blue.shade900,
+                        fontFamily: 'PlayfairDisplay',
+                        shadows: const [
+                          Shadow(color: Colors.blueAccent, blurRadius: 5)
                         ],
                       ),
-                    );
-                  }
+                    ),
+                  ),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: ApisUtils.users
+                        .doc(ApisUtils.auth.currentUser!.uid)
+                        .collection("profiles")
+                        .snapshots(),
+                    builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                            child:
+                                CircularProgressIndicator(color: Colors.blue));
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            "Error fetching data",
+                            style: TextStyle(
+                              color: themeController.isDarkMode.value
+                                  ? Colors.red[300]
+                                  : Colors.red,
+                            ),
+                          ),
+                        );
+                      }
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "No profiles yet. Add a profile!",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: themeController.isDarkMode.value
+                                      ? Colors.grey[400]
+                                      : Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Tap the + button below to get started",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: themeController.isDarkMode.value
+                                      ? Colors.grey[400]
+                                      : Colors.white70,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                  final documents = snapshot.data!.docs;
+                      final documents = snapshot.data!.docs;
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: documents.length,
-                    itemBuilder: (context, index) {
-                      final doc = documents[index];
-                      final docData = doc.data() as Map<String, dynamic>;
-                      final healthConditions =
-                          docData['healthConditions'] as Map<String, dynamic>? ??
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: documents.length,
+                        itemBuilder: (context, index) {
+                          final doc = documents[index];
+                          final docData = doc.data() as Map<String, dynamic>;
+                          final healthConditions = docData['healthConditions']
+                                  as Map<String, dynamic>? ??
                               {};
 
-                      List<String> diseases = [];
-                      if (healthConditions['Diabetes'] == true)
-                        diseases.add("Diabetes");
-                      if (healthConditions['Hypertension'] == true)
-                        diseases.add("Hypertension");
-                      if (healthConditions['Obesity'] == true)
-                        diseases.add("Obesity");
-                      if (healthConditions['HighCholesterol'] == true)
-                        diseases.add("High Cholesterol");
+                          List<String> diseases = [];
+                          if (healthConditions['Diabetes'] == true)
+                            diseases.add("Diabetes");
+                          if (healthConditions['Hypertension'] == true)
+                            diseases.add("Hypertension");
+                          if (healthConditions['Obesity'] == true)
+                            diseases.add("Obesity");
+                          if (healthConditions['HighCholesterol'] == true)
+                            diseases.add("High Cholesterol");
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: _buildSwipeHintOverlay(
-                          Slidable(
-                            key: ValueKey(doc.id),
-                            startActionPane: ActionPane(
-                              motion: const StretchMotion(),
-                              children: [
-                                SlidableAction(
-                                  onPressed: (context) =>
-                                      _confirmDeleteUser(doc.id),
-                                  icon: Icons.delete_forever,
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Colors.red,
-                                  label: "Delete",
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ],
-                            ),
-                            endActionPane: ActionPane(
-                              motion: const StretchMotion(),
-                              children: [
-                                SlidableAction(
-                                  onPressed: (context) => Get.to(() => ScanPage(
-                                    userId: ApisUtils.auth.currentUser!.uid,
-                                    profileId: doc.id,
-                                    name: docData['name']?.toString() ??
-                                        'Unknown',
-                                    healthConditions: {
-                                      'Diabetes':
-                                      healthConditions['Diabetes'] ??
-                                          false,
-                                      'Hypertension':
-                                      healthConditions['Hypertension'] ??
-                                          false,
-                                      'Obesity':
-                                      healthConditions['Obesity'] ??
-                                          false,
-                                      'HighCholesterol':
-                                      healthConditions[
-                                      'HighCholesterol'] ??
-                                          false,
-                                    },
-                                  )),
-                                  icon: Icons.document_scanner_outlined,
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Colors.green,
-                                  label: "Scan",
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ],
-                            ),
-                            child: AnimatedBuilder(
-                              animation: _animationController,
-                              builder: (context, child) {
-                                double glow = _glowAnimation.value;
-                                return Transform(
-                                  transform: Matrix4.identity()
-                                    ..rotateY(math.sin(
-                                        _animationController.value *
-                                            2 *
-                                            math.pi) *
-                                        0.02),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(20),
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.blue.shade700.withOpacity(
-                                              themeController.isDarkMode.value
-                                                  ? 0.1
-                                                  : 0.2),
-                                          themeController.isDarkMode.value
-                                              ? Colors.grey[800]!
-                                              .withOpacity(0.8)
-                                              : Colors.white.withOpacity(0.5),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.blueAccent
-                                              .withOpacity(0.3 * glow),
-                                          blurRadius: 15,
-                                          spreadRadius: 2,
-                                        ),
-                                      ],
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: _buildSwipeHintOverlay(
+                              Slidable(
+                                key: ValueKey(doc.id),
+                                startActionPane: ActionPane(
+                                  motion: const StretchMotion(),
+                                  children: [
+                                    SlidableAction(
+                                      onPressed: (context) =>
+                                          _confirmDeleteUser(doc.id),
+                                      icon: Icons.delete_forever,
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: Colors.red,
+                                      label: "Delete",
+                                      borderRadius: BorderRadius.circular(15),
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: BackdropFilter(
-                                        filter: ui.ImageFilter.blur(
-                                            sigmaX: 10, sigmaY: 10),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(15),
-                                          child: Row(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 30,
-                                                backgroundColor:
-                                                Colors.blue.shade700,
-                                                child: Text(
-                                                  _capitalize(
-                                                      docData['name'] ?? '')[0],
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 24,
-                                                    fontWeight:
-                                                    FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 15),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
+                                  ],
+                                ),
+                                endActionPane: ActionPane(
+                                  motion: const StretchMotion(),
+                                  children: [
+                                    SlidableAction(
+                                      onPressed: (context) => Get.to(() =>
+                                          ScanPage(
+                                            userId:
+                                                ApisUtils.auth.currentUser!.uid,
+                                            profileId: doc.id,
+                                            name: docData['name']?.toString() ??
+                                                'Unknown',
+                                            healthConditions: {
+                                              'Diabetes': healthConditions[
+                                                      'Diabetes'] ??
+                                                  false,
+                                              'Hypertension': healthConditions[
+                                                      'Hypertension'] ??
+                                                  false,
+                                              'Obesity':
+                                                  healthConditions['Obesity'] ??
+                                                      false,
+                                              'HighCholesterol':
+                                                  healthConditions[
+                                                          'HighCholesterol'] ??
+                                                      false,
+                                            },
+                                          )),
+                                      icon: Icons.document_scanner_outlined,
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: Colors.green,
+                                      label: "Scan",
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                  ],
+                                ),
+                                child: AnimatedBuilder(
+                                  animation: _animationController,
+                                  builder: (context, child) {
+                                    double glow = _glowAnimation.value;
+                                    return Transform(
+                                      transform: Matrix4.identity()
+                                        ..rotateY(math.sin(
+                                                _animationController.value *
+                                                    2 *
+                                                    math.pi) *
+                                            0.02),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.blue.shade700.withOpacity(
+                                                  themeController
+                                                          .isDarkMode.value
+                                                      ? 0.1
+                                                      : 0.2),
+                                              themeController.isDarkMode.value
+                                                  ? Colors.grey[800]!
+                                                      .withOpacity(0.8)
+                                                  : Colors.white
+                                                      .withOpacity(0.5),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.blueAccent
+                                                  .withOpacity(0.3 * glow),
+                                              blurRadius: 15,
+                                              spreadRadius: 2,
+                                            ),
+                                          ],
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          child: BackdropFilter(
+                                            filter: ui.ImageFilter.blur(
+                                                sigmaX: 10, sigmaY: 10),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(15),
+                                              child: Row(
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 30,
+                                                    backgroundColor:
+                                                        Colors.blue.shade700,
+                                                    child: Text(
                                                       _capitalize(
                                                           docData['name'] ??
-                                                              'Unknown'),
-                                                      style: TextStyle(
-                                                        color: themeController
-                                                            .isDarkMode
-                                                            .value
-                                                            ? Colors
-                                                            .blue.shade300
-                                                            : Colors
-                                                            .blue.shade900,
+                                                              '')[0],
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 24,
                                                         fontWeight:
-                                                        FontWeight.bold,
-                                                        fontSize: 20,
-                                                        fontFamily:
-                                                        'PlayfairDisplay',
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      "Age: ${docData['age'] ?? 'N/A'}",
-                                                      style: TextStyle(
-                                                        color: themeController
-                                                            .isDarkMode
-                                                            .value
-                                                            ? Colors.grey[400]
-                                                            : Colors.black54,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    Wrap(
-                                                      spacing: 6,
-                                                      runSpacing: 6,
-                                                      children: diseases
-                                                          .map((disease) =>
-                                                          Container(
-                                                            padding: const EdgeInsets
-                                                                .symmetric(
-                                                                horizontal:
-                                                                8,
-                                                                vertical:
-                                                                4),
-                                                            decoration:
-                                                            BoxDecoration(
-                                                              gradient:
-                                                              LinearGradient(
-                                                                colors: themeController
+                                                  ),
+                                                  const SizedBox(width: 15),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          _capitalize(
+                                                              docData['name'] ??
+                                                                  'Unknown'),
+                                                          style: TextStyle(
+                                                            color: themeController
                                                                     .isDarkMode
                                                                     .value
-                                                                    ? [
-                                                                  Colors.green.shade700,
-                                                                  Colors.green.shade900
-                                                                ]
-                                                                    : [
-                                                                  Colors.green.shade100,
-                                                                  Colors.green.shade200
-                                                                ],
-                                                                begin: Alignment
-                                                                    .topLeft,
-                                                                end: Alignment
-                                                                    .bottomRight,
-                                                              ),
-                                                              borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                  10),
-                                                              boxShadow: [
-                                                                BoxShadow(
-                                                                  color: Colors
-                                                                      .green
-                                                                      .withOpacity(
-                                                                      0.2),
-                                                                  blurRadius:
-                                                                  5,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            child: Text(
-                                                              disease,
-                                                              style:
-                                                              TextStyle(
-                                                                color: themeController
-                                                                    .isDarkMode
-                                                                    .value
-                                                                    ? Colors
-                                                                    .green
-                                                                    .shade200
-                                                                    : Colors
-                                                                    .green
-                                                                    .shade800,
-                                                                fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                                fontSize:
-                                                                12,
-                                                              ),
-                                                            ),
-                                                          ))
-                                                          .toList(),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Row(
-                                                    mainAxisSize:
-                                                    MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.arrow_back_ios,
-                                                        size: 12,
-                                                        color: themeController
-                                                            .isDarkMode
-                                                            .value
-                                                            ? Colors.grey[400]
-                                                            : Colors.white70,
-                                                      ),
-                                                      Text(
-                                                        "Swipe",
-                                                        style: TextStyle(
-                                                          color: themeController
-                                                              .isDarkMode
-                                                              .value
-                                                              ? Colors.grey[400]
-                                                              : Colors.white70,
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                          FontWeight.w500,
+                                                                ? Colors.blue
+                                                                    .shade300
+                                                                : Colors.blue
+                                                                    .shade900,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 20,
+                                                            fontFamily:
+                                                                'PlayfairDisplay',
+                                                          ),
                                                         ),
+                                                        const SizedBox(
+                                                            height: 4),
+                                                        Text(
+                                                          "Age: ${docData['age'] ?? 'N/A'}",
+                                                          style: TextStyle(
+                                                            color: themeController
+                                                                    .isDarkMode
+                                                                    .value
+                                                                ? Colors
+                                                                    .grey[400]
+                                                                : Colors
+                                                                    .black54,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 8),
+                                                        Wrap(
+                                                          spacing: 6,
+                                                          runSpacing: 6,
+                                                          children: diseases
+                                                              .map(
+                                                                  (disease) =>
+                                                                      Container(
+                                                                        padding: const EdgeInsets
+                                                                            .symmetric(
+                                                                            horizontal:
+                                                                                8,
+                                                                            vertical:
+                                                                                4),
+                                                                        decoration:
+                                                                            BoxDecoration(
+                                                                          gradient:
+                                                                              LinearGradient(
+                                                                            colors: themeController.isDarkMode.value
+                                                                                ? [
+                                                                                    Colors.green.shade700,
+                                                                                    Colors.green.shade900
+                                                                                  ]
+                                                                                : [
+                                                                                    Colors.green.shade100,
+                                                                                    Colors.green.shade200
+                                                                                  ],
+                                                                            begin:
+                                                                                Alignment.topLeft,
+                                                                            end:
+                                                                                Alignment.bottomRight,
+                                                                          ),
+                                                                          borderRadius:
+                                                                              BorderRadius.circular(10),
+                                                                          boxShadow: [
+                                                                            BoxShadow(
+                                                                              color: Colors.green.withOpacity(0.2),
+                                                                              blurRadius: 5,
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                        child:
+                                                                            Text(
+                                                                          disease,
+                                                                          style:
+                                                                              TextStyle(
+                                                                            color: themeController.isDarkMode.value
+                                                                                ? Colors.green.shade200
+                                                                                : Colors.green.shade800,
+                                                                            fontWeight:
+                                                                                FontWeight.w600,
+                                                                            fontSize:
+                                                                                12,
+                                                                          ),
+                                                                        ),
+                                                                      ))
+                                                              .toList(),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .arrow_back_ios,
+                                                            size: 12,
+                                                            color: themeController
+                                                                    .isDarkMode
+                                                                    .value
+                                                                ? Colors
+                                                                    .grey[400]
+                                                                : Colors
+                                                                    .white70,
+                                                          ),
+                                                          Text(
+                                                            "Swipe",
+                                                            style: TextStyle(
+                                                              color: themeController
+                                                                      .isDarkMode
+                                                                      .value
+                                                                  ? Colors
+                                                                      .grey[400]
+                                                                  : Colors
+                                                                      .white70,
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                            ),
+                                                          ),
+                                                          Icon(
+                                                            Icons
+                                                                .arrow_forward_ios,
+                                                            size: 12,
+                                                            color: themeController
+                                                                    .isDarkMode
+                                                                    .value
+                                                                ? Colors
+                                                                    .grey[400]
+                                                                : Colors
+                                                                    .white70,
+                                                          ),
+                                                        ],
                                                       ),
-                                                      Icon(
-                                                        Icons.arrow_forward_ios,
-                                                        size: 12,
-                                                        color: themeController
-                                                            .isDarkMode
-                                                            .value
-                                                            ? Colors.grey[400]
-                                                            : Colors.white70,
+                                                      const SizedBox(height: 8),
+                                                      GestureDetector(
+                                                        onTap: () {
+                                                          Get.to(
+                                                              () => ChatScreen(
+                                                                    initialMessage:
+                                                                        "My name is ${docData['name'] ?? 'Unknown'}, my age is ${docData['age'] ?? 'N/A'} and I have ${diseases.join(", ")}",
+                                                                  ));
+                                                        },
+                                                        child: AnimatedBuilder(
+                                                          animation:
+                                                              _animationController,
+                                                          builder:
+                                                              (context, child) {
+                                                            return Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .all(8),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                                gradient:
+                                                                    RadialGradient(
+                                                                  colors: [
+                                                                    Colors.blue
+                                                                        .shade200,
+                                                                    Colors.blue
+                                                                        .shade700,
+                                                                  ],
+                                                                  radius: 0.8,
+                                                                ),
+                                                                boxShadow: [
+                                                                  BoxShadow(
+                                                                    color: Colors
+                                                                        .blueAccent
+                                                                        .withOpacity(0.5 *
+                                                                            _glowAnimation.value),
+                                                                    blurRadius:
+                                                                        10,
+                                                                    spreadRadius:
+                                                                        2,
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                              child:
+                                                                  Image.asset(
+                                                                'assets/animations/chat-bot_icon.png',
+                                                                width: 30,
+                                                                height: 30,
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
-                                                  const SizedBox(height: 8),
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      Get.to(() => ChatScreen(
-                                                        initialMessage:
-                                                        "My name is ${docData['name'] ?? 'Unknown'}, my age is ${docData['age'] ?? 'N/A'} and I have ${diseases.join(", ")}",
-                                                      ));
-                                                    },
-                                                    child: AnimatedBuilder(
-                                                      animation:
-                                                      _animationController,
-                                                      builder:
-                                                          (context, child) {
-                                                        return Container(
-                                                          padding:
-                                                          const EdgeInsets
-                                                              .all(8),
-                                                          decoration:
-                                                          BoxDecoration(
-                                                            shape:
-                                                            BoxShape.circle,
-                                                            gradient:
-                                                            RadialGradient(
-                                                              colors: [
-                                                                Colors.blue
-                                                                    .shade200,
-                                                                Colors.blue
-                                                                    .shade700,
-                                                              ],
-                                                              radius: 0.8,
-                                                            ),
-                                                            boxShadow: [
-                                                              BoxShadow(
-                                                                color: Colors
-                                                                    .blueAccent
-                                                                    .withOpacity(
-                                                                    0.5 *
-                                                                        _glowAnimation
-                                                                            .value),
-                                                                blurRadius: 10,
-                                                                spreadRadius: 2,
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          child: Image.asset(
-                                                            'assets/animations/chat-bot_icon.png',
-                                                            width: 30,
-                                                            height: 30,
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
                                                 ],
                                               ),
-                                            ],
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                );
-                              },
+                                    );
+                                  },
+                                ),
+                              ),
+                              index,
                             ),
-                          ),
-                          index,
-                        ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
+                  ),
+                  const SizedBox(height: 24),
+                  _buildRecentScans(),
+                ],
               ),
-              const SizedBox(height: 24),
-              _buildRecentScans(),
-            ],
-          ),
-        ),
-        bottomNavigationBar: BottomAppBar(
-          shape: CircularNotchedRectangle(),
-          color: Colors.blue.shade700,
-          notchMargin: 8.0,
-          child: SizedBox(
-            height: 60,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.home,
-                    color: _currentIndex == 0 ? Colors.blue.shade200 : Colors.grey,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex = 0;
-                    });
-                  },
-                ),
-                const SizedBox(width: 48),
-                IconButton(
-                  icon: Icon(
-                    Icons.person,
-                    color: _currentIndex == 1 ? Colors.blue.shade200 : Colors.grey,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex = 1;
-                    });
-                    _navigateToSettings();
-                  },
-                ),
-              ],
             ),
-          ),
-        ),
-        floatingActionButton: _isAnimationInitialized
-            ? ScaleTransition(
-          scale: _fabVanishAnimation,
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              double glow = _glowAnimation.value;
-              return Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blueAccent.withOpacity(0.5 * glow),
-                      blurRadius: 15,
-                      spreadRadius: 2,
+            bottomNavigationBar: BottomAppBar(
+              shape: CircularNotchedRectangle(),
+              color: Colors.blue.shade700,
+              notchMargin: 8.0,
+              child: SizedBox(
+                height: 60,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.home,
+                        color: _currentIndex == 0
+                            ? Colors.blue.shade200
+                            : Colors.grey,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _currentIndex = 0;
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 48),
+                    IconButton(
+                      icon: Icon(
+                        Icons.person,
+                        color: _currentIndex == 1
+                            ? Colors.blue.shade200
+                            : Colors.grey,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _currentIndex = 1;
+                        });
+                        _navigateToSettings();
+                      },
                     ),
                   ],
                 ),
-                child: SizedBox(
-                  width: 65,
-                  height: 65,
-                  child: FloatingActionButton(
-                    onPressed: _addUser,
-                    backgroundColor: Colors.blue.shade200,
-                    elevation: 10,
-                    shape: const CircleBorder(),
-                    child: const Icon(Icons.add, color: Colors.white, size: 40),
-                  ),
-                ),
-              );
-            },
+              ),
+            ),
+            floatingActionButton: _isAnimationInitialized
+                ? ScaleTransition(
+                    scale: _fabVanishAnimation,
+                    child: AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        double glow = _glowAnimation.value;
+                        return Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    Colors.blueAccent.withOpacity(0.5 * glow),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: SizedBox(
+                            width: 65,
+                            height: 65,
+                            child: FloatingActionButton(
+                              onPressed: _addUser,
+                              backgroundColor: Colors.blue.shade200,
+                              elevation: 10,
+                              shape: const CircleBorder(),
+                              child: const Icon(Icons.add,
+                                  color: Colors.white, size: 40),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerDocked,
           ),
-        )
-            : const SizedBox.shrink(),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      ),
-    ));
+        ));
   }
 }

@@ -33,7 +33,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // Save user data to Firestore
-  Future<void> _saveUserToFirestore(String uid, {String? email, bool isGuest = false}) async {
+  Future<void> _saveUserToFirestore(String uid,
+      {String? email, bool isGuest = false}) async {
     // Check if user already exists to avoid overwriting
     final doc = await _firestore.collection('users').doc(uid).get();
     if (!doc.exists) {
@@ -79,7 +80,8 @@ class _LoginPageState extends State<LoginPage> {
       );
       final user = userCredential.user;
       if (user != null) {
-        await _saveUserToFirestore(user.uid, email: emailController.text.trim());
+        await _saveUserToFirestore(user.uid,
+            email: emailController.text.trim());
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -101,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
     return SafeArea(
       child: Scaffold(
         body: Container(
-          height: mq.height ,
+          height: mq.height,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -160,16 +162,16 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         LsTextField(
-                          hintText: "email@example.com",
-                          labelText: "Email",
+                          hintText: "john123",
+                          labelText: "username",
                           controller: emailController,
                           secure: false,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return "Please enter your email";
+                              return "Please enter your username";
                             }
                             if (!_isValidEmail(value)) {
-                              return "Please enter a valid email";
+                              return "Please enter a valid username";
                             }
                             return null;
                           },
@@ -192,12 +194,13 @@ class _LoginPageState extends State<LoginPage> {
                         SizedBox(height: mq.height * 0.035),
                         _isLoading
                             ? const CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                        )
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.blue),
+                              )
                             : LsButton(
-                          text: "Log In",
-                          ontap: _handleEmailLogin,
-                        ),
+                                text: "Log In",
+                                ontap: _handleEmailLogin,
+                              ),
                         SizedBox(height: mq.height * 0.02),
                         TextButton(
                           onPressed: () {
